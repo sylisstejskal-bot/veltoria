@@ -10,10 +10,14 @@
     box-sizing: border-box;
 }
 
+html, body {
+    min-height: 100%;
+}
+
 body {
     margin: 0;
     font-family: Arial, sans-serif;
-    background: #0f0f14;
+    background: #0f0f14 !important;
     color: white;
 }
 
@@ -209,7 +213,15 @@ body {
 }
 
 .page.active {
-    display: block;
+    display: block !important;
+}
+
+#login.page.active {
+    min-height: 100vh;
+}
+
+#veltoriaApp {
+    min-height: 100vh;
 }
 
 h1 {
@@ -794,7 +806,9 @@ body.light-mode .button.secondary {
     color: #181820;
 }
 
-/* SYSTEM #6 — MESSAGES */
+/* =====================================================
+   SYSTEM #6 — MESSAGES
+   ===================================================== */
 
 .messages-layout {
     display: grid;
@@ -941,6 +955,7 @@ body.light-mode .message.received {
 body.light-mode .chat-input-area {
     border-color: #e1e1e7;
 }
+
 
 /* MARKETPLACE ITEM POPUP */
 
@@ -1108,6 +1123,7 @@ body.light-mode .marketplace-item-icon {
     .message-area {
         min-height: 300px;
     }
+
 }
 </style>
 </head>
@@ -1171,6 +1187,7 @@ body.light-mode .marketplace-item-icon {
         </div>
     </div>
 </section>
+
 
 <!-- SIGN UP -->
 
@@ -1237,6 +1254,7 @@ body.light-mode .marketplace-item-icon {
     </div>
 </section>
 
+
 <!-- QUICK SIGN IN -->
 
 <section id="quick" class="page">
@@ -1275,6 +1293,7 @@ body.light-mode .marketplace-item-icon {
         </div>
     </div>
 </section>
+
 
 <!-- VELTORIA APP -->
 
@@ -1336,6 +1355,7 @@ body.light-mode .marketplace-item-icon {
         </button>
 
     </aside>
+
 
     <main class="main">
 
@@ -1401,6 +1421,7 @@ body.light-mode .marketplace-item-icon {
 
         </div>
 
+
         <div class="content">
 
             <!-- HOME -->
@@ -1434,6 +1455,7 @@ body.light-mode .marketplace-item-icon {
 
             </section>
 
+
             <!-- GAMES -->
 
             <section id="games" class="page">
@@ -1459,6 +1481,7 @@ body.light-mode .marketplace-item-icon {
                 </div>
 
             </section>
+
 
             <!-- PROFILE SYSTEM #4 -->
 
@@ -1572,6 +1595,7 @@ body.light-mode .marketplace-item-icon {
 
                     </div>
 
+
                     <div class="card profile-about">
 
                         <h2>📝 About Me</h2>
@@ -1584,6 +1608,7 @@ body.light-mode .marketplace-item-icon {
                         </p>
 
                     </div>
+
 
                     <div class="card profile-about">
 
@@ -1612,6 +1637,7 @@ body.light-mode .marketplace-item-icon {
                     </div>
 
                 </div>
+
 
                 <div
                     id="editProfileCard"
@@ -1669,6 +1695,7 @@ body.light-mode .marketplace-item-icon {
                 </div>
 
             </section>
+
 
             <!-- FRIENDS SYSTEM #3 -->
 
@@ -1743,6 +1770,7 @@ body.light-mode .marketplace-item-icon {
 
             </section>
 
+
             <!-- COMMUNITIES -->
 
             <section id="communities" class="page">
@@ -1773,6 +1801,7 @@ body.light-mode .marketplace-item-icon {
 
             </section>
 
+
             <!-- INVENTORY -->
 
             <section id="inventory" class="page">
@@ -1802,6 +1831,7 @@ body.light-mode .marketplace-item-icon {
                 </div>
 
             </section>
+
 
             <!-- MARKETPLACE -->
 
@@ -1878,6 +1908,7 @@ body.light-mode .marketplace-item-icon {
 
             </section>
 
+
             <!-- GET VELTAS -->
 
             <section id="get-veltas" class="page">
@@ -1909,6 +1940,7 @@ body.light-mode .marketplace-item-icon {
 
             </section>
 
+
             <!-- HELP -->
 
             <section id="help" class="page">
@@ -1926,7 +1958,10 @@ body.light-mode .marketplace-item-icon {
 
             </section>
 
-            <!-- SYSTEM #6 — MESSAGES -->
+
+            <!-- =================================================
+                 SYSTEM #6 — MESSAGES
+                 ================================================= -->
 
             <section id="messages" class="page">
 
@@ -1959,6 +1994,7 @@ body.light-mode .marketplace-item-icon {
 
                         </div>
 
+
                         <div
                             class="conversation"
                             onclick="openConversation('Jamie')"
@@ -1975,6 +2011,7 @@ body.light-mode .marketplace-item-icon {
                             </div>
 
                         </div>
+
 
                         <div
                             class="conversation"
@@ -1994,6 +2031,7 @@ body.light-mode .marketplace-item-icon {
                         </div>
 
                     </div>
+
 
                     <div class="chat-panel">
 
@@ -2021,10 +2059,12 @@ body.light-mode .marketplace-item-icon {
 
                         </div>
 
+
                         <div
                             id="messageArea"
                             class="message-area"
                         ></div>
+
 
                         <div class="chat-input-area">
 
@@ -2051,6 +2091,7 @@ body.light-mode .marketplace-item-icon {
 
             </section>
 
+
             <!-- CLUB -->
 
             <section id="club" class="page">
@@ -2072,6 +2113,7 @@ body.light-mode .marketplace-item-icon {
                 </div>
 
             </section>
+
 
             <!-- SETTINGS SYSTEM #5 -->
 
@@ -2121,6 +2163,7 @@ body.light-mode .marketplace-item-icon {
 
                 </div>
 
+
                 <div class="settings-section">
 
                     <h2>🔔 Notifications</h2>
@@ -2158,6 +2201,7 @@ body.light-mode .marketplace-item-icon {
                     </div>
 
                 </div>
+
 
                 <div class="settings-section">
 
@@ -2215,6 +2259,7 @@ body.light-mode .marketplace-item-icon {
 
                 </div>
 
+
                 <div class="settings-actions">
 
                     <button
@@ -2240,6 +2285,7 @@ body.light-mode .marketplace-item-icon {
     </main>
 
 </div>
+
 
 <!-- MARKETPLACE ITEM POPUP -->
 
@@ -2272,6 +2318,7 @@ body.light-mode .marketplace-item-icon {
     </div>
 
 </div>
+
 
 <!-- DOWNLOAD POPUP -->
 
@@ -2311,10 +2358,15 @@ body.light-mode .marketplace-item-icon {
 
 </div>
 
+
 <script>
 
 /* =====================================================
    SYSTEM #1 — AUTH
+   ===================================================== */
+
+/* =====================================================
+   VELTORIA DATABASE CONNECTION
    ===================================================== */
 
 let currentUsername = "Sylis Guy";
@@ -2394,16 +2446,24 @@ function buyMarketplaceItem() {
    ===================================================== */
 
 let settingsData = {
+
     darkMode: true,
+
     notifications: true
+
 };
+
 
 function applySettings() {
 
     if (settingsData.darkMode) {
+
         document.body.classList.remove("light-mode");
+
     } else {
+
         document.body.classList.add("light-mode");
+
     }
 
     const darkToggle =
@@ -2413,15 +2473,21 @@ function applySettings() {
         document.getElementById("notificationsToggle");
 
     if (darkToggle) {
+
         darkToggle.checked =
             settingsData.darkMode;
+
     }
 
     if (notificationsToggle) {
+
         notificationsToggle.checked =
             settingsData.notifications;
+
     }
+
 }
+
 
 function saveSettings() {
 
@@ -2432,13 +2498,17 @@ function saveSettings() {
         document.getElementById("notificationsToggle");
 
     if (darkToggle) {
+
         settingsData.darkMode =
             darkToggle.checked;
+
     }
 
     if (notificationsToggle) {
+
         settingsData.notifications =
             notificationsToggle.checked;
+
     }
 
     applySettings();
@@ -2446,7 +2516,9 @@ function saveSettings() {
     alert(
         "Your Veltoria settings have been saved! ⚙️"
     );
+
 }
+
 
 function resetSettings() {
 
@@ -2460,6 +2532,7 @@ function resetSettings() {
     }
 
     settingsData.darkMode = true;
+
     settingsData.notifications = true;
 
     applySettings();
@@ -2467,7 +2540,9 @@ function resetSettings() {
     alert(
         "Your settings have been reset! 🔄"
     );
+
 }
+
 
 function updateSettingsUI() {
 
@@ -2478,17 +2553,22 @@ function updateSettingsUI() {
         document.getElementById("settingsUsername");
 
     if (displayName) {
+
         displayName.textContent =
             profileData.displayName;
+
     }
 
     if (username) {
+
         username.textContent =
             "@" +
             currentUsername
                 .replace(/\s+/g, "")
                 .toLowerCase();
+
     }
+
 }
 
 
@@ -2499,18 +2579,68 @@ function showAuthPage(pageId) {
     document
         .querySelectorAll("body > section")
         .forEach(function(page) {
+
             page.classList.remove("active");
+
         });
 
     document
         .getElementById(pageId)
         .classList.add("active");
+
+}
+
+
+/* =====================================================
+   RESOLVE THE REAL USERNAME FROM THE USERS TABLE
+   This lets login work with either username OR email.
+   ===================================================== */
+
+async function resolveCurrentUsername(loginValue) {
+
+    const value = String(loginValue || "").trim();
+
+    if (!value) {
+        return value;
+    }
+
+    if (value.includes("@")) {
+
+        try {
+
+            const response = await fetch(
+                DATABASE_API_URL +
+                "/rest/v1/users?email=eq." +
+                encodeURIComponent(value) +
+                "&select=username&limit=1",
+                {
+                    method: "GET",
+                    headers: {
+                        "apikey": PUBLISHABLE_API_KEY,
+                        "Authorization": "Bearer " + PUBLISHABLE_API_KEY
+                    }
+                }
+            );
+
+            if (response.ok) {
+                const rows = await response.json();
+                if (rows.length && rows[0].username) {
+                    return rows[0].username;
+                }
+            }
+
+        } catch (error) {
+            console.warn("Could not resolve email to username:", error);
+        }
+    }
+
+    return value;
 }
 
 
 /* LOGIN */
 
-function login() {
+async function login() {
 
     const username =
         document
@@ -2532,10 +2662,12 @@ function login() {
         return;
     }
 
-    currentUsername = username;
-    profileData.displayName = username;
+    currentUsername = await resolveCurrentUsername(username);
+
+    profileData.displayName = currentUsername;
 
     updateProfileUI();
+
     updateSettingsUI();
 
     if (
@@ -2563,13 +2695,18 @@ function login() {
         .getElementById("veltoriaApp")
         .style.display = "block";
 
-    renderFriends();
+    await renderFriends();
+
     applySettings();
+
     initializeMessages();
+
+    startFriendRequestAutoRefresh();
 
     alert(
         "Welcome to Veltoria, " + username + "! 🎉"
     );
+
 }
 
 
@@ -2627,6 +2764,7 @@ function signup() {
     );
 
     showAuthPage("login");
+
 }
 
 
@@ -2655,40 +2793,54 @@ function updateProfileUI() {
         document.getElementById("profileFriendCount");
 
     if (displayName) {
+
         displayName.textContent =
             profileData.displayName;
+
     }
 
     if (username) {
+
         username.textContent =
             "@" +
             currentUsername
                 .replace(/\s+/g, "")
                 .toLowerCase();
+
     }
 
     if (about) {
+
         about.textContent =
             profileData.about;
+
     }
 
     if (avatar) {
+
         avatar.textContent =
             getInitial(profileData.displayName);
+
     }
 
     if (topbarAvatar) {
+
         topbarAvatar.textContent =
             getInitial(profileData.displayName);
+
     }
 
     if (friendCount) {
+
         friendCount.textContent =
             friends.length;
+
     }
 
     updateSettingsUI();
+
 }
+
 
 function openEditProfile() {
 
@@ -2706,14 +2858,18 @@ function openEditProfile() {
         profileData.about;
 
     card.classList.add("active");
+
 }
+
 
 function closeEditProfile() {
 
     document
         .getElementById("editProfileCard")
         .classList.remove("active");
+
 }
+
 
 function saveProfile() {
 
@@ -2746,11 +2902,13 @@ function saveProfile() {
         "Welcome to my Veltoria profile!";
 
     updateProfileUI();
+
     closeEditProfile();
 
     alert(
         "Your profile has been updated! ✨"
     );
+
 }
 
 
@@ -2763,7 +2921,9 @@ function showPage(pageId, button) {
     document
         .querySelectorAll("#veltoriaApp .page")
         .forEach(function(page) {
+
             page.classList.remove("active");
+
         });
 
     document
@@ -2773,37 +2933,54 @@ function showPage(pageId, button) {
     document
         .querySelectorAll(".nav-button")
         .forEach(function(btn) {
+
             btn.classList.remove("active");
+
         });
 
     if (button) {
+
         button.classList.add("active");
+
     }
 
     if (pageId === "friends") {
+
         renderFriends();
+
     }
 
     if (pageId === "profile") {
+
         updateProfileUI();
+
     }
 
     if (pageId === "messages") {
+
         initializeMessages();
+
     }
 
     if (pageId === "settings") {
+
         applySettings();
+
         updateSettingsUI();
+
     }
+
 }
+
 
 function showPageById(pageId) {
 
     document
         .querySelectorAll("#veltoriaApp .page")
         .forEach(function(page) {
+
             page.classList.remove("active");
+
         });
 
     document
@@ -2813,7 +2990,9 @@ function showPageById(pageId) {
     document
         .querySelectorAll(".nav-button")
         .forEach(function(btn) {
+
             btn.classList.remove("active");
+
         });
 
     const matchingButton =
@@ -2828,25 +3007,37 @@ function showPageById(pageId) {
         });
 
     if (matchingButton) {
+
         matchingButton.classList.add("active");
+
     }
 
     if (pageId === "friends") {
+
         renderFriends();
+
     }
 
     if (pageId === "profile") {
+
         updateProfileUI();
+
     }
 
     if (pageId === "messages") {
+
         initializeMessages();
+
     }
 
     if (pageId === "settings") {
+
         applySettings();
+
         updateSettingsUI();
+
     }
+
 }
 
 
@@ -2857,6 +3048,7 @@ function playTestGame() {
     document
         .getElementById("downloadOverlay")
         .style.display = "flex";
+
 }
 
 
@@ -2867,26 +3059,27 @@ function closeDownloadPopup() {
     document
         .getElementById("downloadOverlay")
         .style.display = "none";
+
 }
+
 
 function downloadVelta() {
 
     alert(
         "Velta download coming soon! 🎮"
     );
+
 }
 
 
-document.addEventListener("click", function(event) {
 
-    const overlay =
-        document.getElementById("marketplaceOverlay");
+document.addEventListener("click", function(event) {
+    const overlay = document.getElementById("marketplaceOverlay");
 
     if (overlay && event.target === overlay) {
         closeMarketplaceItem();
     }
 });
-
 
 /* =====================================================
    SYSTEM #2 — NOTIFICATIONS
@@ -2903,13 +3096,16 @@ function toggleNotifications(event) {
         );
 
         return;
+
     }
 
     const panel =
         document.getElementById("notificationPanel");
 
     panel.classList.toggle("active");
+
 }
+
 
 document.addEventListener("click", function(event) {
 
@@ -2924,192 +3120,235 @@ document.addEventListener("click", function(event) {
         panel &&
         !wrapper.contains(event.target)
     ) {
+
         panel.classList.remove("active");
+
     }
+
 });
 
 
 /* =====================================================
-   SYSTEM #3 — FRIENDS
+   SYSTEM #3 — REAL SUPABASE FRIENDS
    ===================================================== */
 
-let friends = [
-
-    {
-        username: "Alex",
-        online: true
-    },
-
-    {
-        username: "Jamie",
-        online: false
-    },
-
-    {
-        username: "Morgan",
-        online: true
-    }
-
-];
-
-let friendRequests = [
-
-    {
-        username: "Taylor"
-    },
-
-    {
-        username: "Riley"
-    }
-
-];
+let friends = [];
+let friendRequests = [];
 
 
-function renderFriends() {
+/* =====================================================
+   LOAD FRIENDS
+   ===================================================== */
 
-    const friendList =
-        document.getElementById("friendList");
+async function loadFriendsFromDatabase() {
 
-    const requestList =
-        document.getElementById("friendRequests");
+    if (!currentUsername) return;
 
-    const friendCount =
-        document.getElementById("friendCount");
-
-    const requestCount =
-        document.getElementById("requestCount");
-
-    const searchInput =
-        document.getElementById("friendSearch");
-
-    if (!friendList || !requestList) {
+    if (DATABASE_API_URL.includes("PASTE YOUR") || PUBLISHABLE_API_KEY.includes("PASTE YOUR")) {
+        console.warn("Veltoria database placeholders have not been replaced yet.");
         return;
     }
 
-    const search =
-        searchInput
-            ? searchInput.value
-                .trim()
-                .toLowerCase()
-            : "";
+    try {
 
-    friendCount.textContent =
-        friends.length;
+        const response = await fetch(
+            DATABASE_API_URL +
+            "/rest/v1/friends?or=" +
+            "(and(sender.eq." + encodeURIComponent(currentUsername) +
+            ",status.eq.accepted),and(recipient.eq." + encodeURIComponent(currentUsername) +
+            ",status.eq.accepted))&select=*",
+            {
+                method: "GET",
+                headers: {
+                    "apikey": PUBLISHABLE_API_KEY,
+                    "Authorization": "Bearer " + PUBLISHABLE_API_KEY
+                }
+            }
+        );
 
-    requestCount.textContent =
-        friendRequests.length;
+        if (!response.ok) {
+            console.error("Supabase friends error:", await response.text());
+            return;
+        }
+
+        const rows = await response.json();
+
+        friends = rows.map(function(row) {
+
+            return {
+                username:
+                    row.sender === currentUsername
+                        ? row.recipient
+                        : row.sender,
+                online: true
+            };
+
+        });
+
+    } catch (error) {
+        console.error("Could not load friends:", error);
+    }
+
+}
+
+
+/* =====================================================
+   LOAD INCOMING FRIEND REQUESTS
+   ===================================================== */
+
+async function loadFriendRequestsFromDatabase() {
+
+    if (!currentUsername) return;
+
+    if (DATABASE_API_URL.includes("PASTE YOUR") || PUBLISHABLE_API_KEY.includes("PASTE YOUR")) {
+        console.warn("Veltoria database placeholders have not been replaced yet.");
+        return;
+    }
+
+    try {
+
+        const response = await fetch(
+            DATABASE_API_URL +
+            "/rest/v1/friends?recipient=eq." +
+            encodeURIComponent(currentUsername) +
+            "&status=eq.pending&select=*",
+            {
+                method: "GET",
+                headers: {
+                    "apikey": PUBLISHABLE_API_KEY,
+                    "Authorization": "Bearer " + PUBLISHABLE_API_KEY
+                }
+            }
+        );
+
+        if (!response.ok) {
+            console.error("Supabase friend requests error:", await response.text());
+            return;
+        }
+
+        const rows = await response.json();
+
+        friendRequests = rows.map(function(row) {
+            return {
+                id: row.id,
+                username: row.sender
+            };
+        });
+
+    } catch (error) {
+        console.error("Could not load friend requests:", error);
+    }
+
+}
+
+
+/* =====================================================
+   RENDER FRIENDS
+   ===================================================== */
+
+async function renderFriends() {
+
+    const friendList = document.getElementById("friendList");
+    const requestList = document.getElementById("friendRequests");
+    const friendCount = document.getElementById("friendCount");
+    const requestCount = document.getElementById("requestCount");
+    const searchInput = document.getElementById("friendSearch");
+
+    if (!friendList || !requestList) return;
+
+    await loadFriendsFromDatabase();
+    await loadFriendRequestsFromDatabase();
+
+    const search = searchInput
+        ? searchInput.value.trim().toLowerCase()
+        : "";
+
+    friendCount.textContent = friends.length;
+    requestCount.textContent = friendRequests.length;
 
     requestList.innerHTML = "";
 
     if (friendRequests.length === 0) {
 
         requestList.innerHTML = `
-
             <div class="empty-friends">
-
                 📭 You don't have any friend requests right now.
-
             </div>
-
         `;
 
     } else {
 
-        friendRequests.forEach(function(request, index) {
+        friendRequests.forEach(function(request) {
 
-            const card =
-                document.createElement("div");
-
-            card.className =
-                "request-card";
+            const card = document.createElement("div");
+            card.className = "request-card";
 
             card.innerHTML = `
-
                 <div class="friend-avatar">
                     ${getInitial(request.username)}
                 </div>
 
                 <div class="friend-info">
-
                     <div class="friend-name">
                         ${escapeHtml(request.username)}
                     </div>
-
                     <div class="muted">
                         Wants to be your friend
                     </div>
-
                 </div>
 
                 <div class="friend-actions">
-
                     <button
                         class="button"
-                        onclick="acceptFriendRequest(${index})"
+                        onclick="acceptFriendRequest(${request.id})"
                     >
                         ✓ Accept
                     </button>
 
                     <button
                         class="button secondary"
-                        onclick="declineFriendRequest(${index})"
+                        onclick="declineFriendRequest(${request.id})"
                     >
                         ✕ Decline
                     </button>
-
                 </div>
-
             `;
 
             requestList.appendChild(card);
+
         });
     }
 
     friendList.innerHTML = "";
 
-    const filteredFriends =
-        friends.filter(function(friend) {
-
-            return friend.username
-                .toLowerCase()
-                .includes(search);
-
-        });
+    const filteredFriends = friends.filter(function(friend) {
+        return friend.username.toLowerCase().includes(search);
+    });
 
     if (filteredFriends.length === 0) {
 
         friendList.innerHTML = `
-
             <div
                 class="empty-friends"
                 style="grid-column:1/-1;"
             >
-
                 ${
                     search
                         ? "🔎 No friends matched your search."
                         : "👥 You don't have any friends yet."
                 }
-
             </div>
-
         `;
 
     } else {
 
         filteredFriends.forEach(function(friend) {
 
-            const actualIndex =
-                friends.indexOf(friend);
-
-            const card =
-                document.createElement("div");
-
-            card.className =
-                "friend-card";
+            const actualIndex = friends.indexOf(friend);
+            const card = document.createElement("div");
+            card.className = "friend-card";
 
             card.innerHTML = `
-
                 <div
                     class="friend-avatar"
                     style="cursor:pointer;"
@@ -3123,265 +3362,16 @@ function renderFriends() {
                     style="cursor:pointer;"
                     onclick="viewFriendProfile('${escapeJs(friend.username)}')"
                 >
-
                     <div class="friend-name">
                         ${escapeHtml(friend.username)}
                     </div>
 
-                    <div
-                        class="friend-status ${
-                            friend.online
-                                ? "online"
-                                : "offline"
-                        }"
-                    >
-
-                        ${
-                            friend.online
-                                ? "🟢 Online"
-                                : "⚫ Offline"
-                        }
-
+                    <div class="friend-status online">
+                        🟢 Online
                     </div>
-
                 </div>
 
                 <div class="friend-actions">
-
-                    ${
-                        friend.online
-                            ? `
-
-                                <button
-                                    class="button"
-                                    onclick="messageFriend('${escapeJs(friend.username)}')"
-                                >
-                                    💬 Message
-                                </button>
-
-                              `
-                            : ""
-                    }
-
-                    <button
-                        class="button danger"
-                        onclick="removeFriend(${actualIndex})"
-                    >
-                        🗑️ Remove
-                    </button>
-
-                </div>
-
-            `;
-
-            friendList.appendChild(card);
-        });
-    }
-}
-
-
-function sendFriendRequest() {
-
-    const searchInput =
-        document.getElementById("friendSearch");
-
-    const username =
-        searchInput
-            ? searchInput.value.trim()
-            : "";
-
-    if (!username) {
-
-        alert(
-            "Type a username into the search box first."
-        );
-
-        return;
-    }
-
-    const alreadyFriend =
-        friends.some(function(friend) {
-
-            return friend.username.toLowerCase() ===
-                username.toLowerCase();
-
-        });
-
-    if (alreadyFriend) {
-
-        alert(
-            username +
-            " is already your friend."
-        );
-
-        return;
-    }
-
-    alert(
-        "Friend request sent to " +
-        username +
-        "! 👥"
-    );
-
-    searchInput.value = "";
-
-    renderFriends();
-}
-
-
-function acceptFriendRequest(index) {
-
-    const request =
-        friendRequests[index];
-
-    if (!request) {
-        return;
-    }
-
-    friends.push({
-
-        username: request.username,
-
-        online: true
-
-    });
-
-    friendRequests.splice(index, 1);
-
-    renderFriends();
-    updateProfileUI();
-
-    alert(
-        request.username +
-        " is now your friend! 🎉"
-    );
-}
-
-
-function declineFriendRequest(index) {
-
-    const request =
-        friendRequests[index];
-
-    if (!request) {
-        return;
-    }
-
-    friendRequests.splice(index, 1);
-
-    renderFriends();
-
-    alert(
-        "Friend request from " +
-        request.username +
-        " declined."
-    );
-}
-
-
-function removeFriend(index) {
-
-    const friend =
-        friends[index];
-
-    if (!friend) {
-        return;
-    }
-
-    const confirmed =
-        confirm(
-            "Remove " +
-            friend.username +
-            " from your friends?"
-        );
-
-    if (!confirmed) {
-        return;
-    }
-
-    friends.splice(index, 1);
-
-    renderFriends();
-    updateProfileUI();
-
-    alert(
-        friend.username +
-        " was removed from your friends."
-    );
-}
-
-
-function messageFriend(username) {
-
-    showPageById("messages");
-
-    openConversation(username);
-}
-
-
-function viewFriendProfile(username) {
-
-    const friend =
-        friends.find(function(item) {
-
-            return item.username.toLowerCase() ===
-                username.toLowerCase();
-
-        });
-
-    if (!friend) {
-        return;
-    }
-
-    showPageById("profile");
-
-    const profileView =
-        document.getElementById("profileView");
-
-    const editCard =
-        document.getElementById("editProfileCard");
-
-    editCard.classList.remove("active");
-    profileView.classList.remove("hidden");
-
-    document.getElementById("profileDisplayName")
-        .textContent = friend.username;
-
-    document.getElementById("profileUsername")
-        .textContent =
-        "@" +
-        friend.username.toLowerCase();
-
-    document.getElementById("profileAvatar")
-        .textContent =
-        getInitial(friend.username);
-
-    document.getElementById("profileAbout")
-        .textContent =
-        "Veltoria friend profile.";
-
-    document.getElementById("profileFriendCount")
-        .textContent =
-        "—";
-
-    document.querySelector(".profile-status")
-        .textContent =
-        friend.online
-            ? "🟢 Online"
-            : "⚫ Offline";
-
-    document.getElementById("ownerBadge")
-        .style.display = "none";
-
-    const actions =
-        document.querySelector(".profile-actions");
-
-    actions.innerHTML = `
-
-        ${
-            friend.online
-                ? `
-
                     <button
                         class="button"
                         onclick="messageFriend('${escapeJs(friend.username)}')"
@@ -3389,9 +3379,359 @@ function viewFriendProfile(username) {
                         💬 Message
                     </button>
 
-                  `
-                : ""
+                    <button
+                        class="button danger"
+                        onclick="removeFriend(${actualIndex})"
+                    >
+                        🗑️ Remove
+                    </button>
+                </div>
+            `;
+
+            friendList.appendChild(card);
+
+        });
+    }
+
+    updateProfileUI();
+}
+
+
+/* =====================================================
+   KEEP FRIEND REQUESTS FRESH
+   ===================================================== */
+
+let friendRefreshTimer = null;
+
+function startFriendRequestAutoRefresh() {
+
+    if (friendRefreshTimer) {
+        clearInterval(friendRefreshTimer);
+    }
+
+    friendRefreshTimer = setInterval(function() {
+        const friendsPage = document.getElementById("friends");
+
+        if (friendsPage && friendsPage.classList.contains("active")) {
+            renderFriends();
         }
+    }, 5000);
+}
+
+
+/* =====================================================
+   SEND FRIEND REQUEST TO SUPABASE
+   ===================================================== */
+
+async function sendFriendRequest() {
+
+    const searchInput = document.getElementById("friendSearch");
+    const username = searchInput ? searchInput.value.trim() : "";
+
+    if (!username) {
+        alert("Type a username into the search box first.");
+        return;
+    }
+
+    if (username.toLowerCase() === currentUsername.toLowerCase()) {
+        alert("You can't send yourself a friend request.");
+        return;
+    }
+
+    try {
+
+        const userResponse = await fetch(
+            DATABASE_API_URL +
+            "/rest/v1/users?username=eq." +
+            encodeURIComponent(username) +
+            "&select=username",
+            {
+                method: "GET",
+                headers: {
+                    "apikey": PUBLISHABLE_API_KEY,
+                    "Authorization": "Bearer " + PUBLISHABLE_API_KEY
+                }
+            }
+        );
+
+        if (!userResponse.ok) {
+            console.error("User lookup error:", await userResponse.text());
+            alert("Could not search for that user.");
+            return;
+        }
+
+        const users = await userResponse.json();
+
+        if (!users.length) {
+            alert("That Veltoria user doesn't exist.");
+            return;
+        }
+
+        const existingResponse = await fetch(
+            DATABASE_API_URL +
+            "/rest/v1/friends?or=" +
+            "(and(sender.eq." + encodeURIComponent(currentUsername) +
+            ",recipient.eq." + encodeURIComponent(username) +
+            "),and(sender.eq." + encodeURIComponent(username) +
+            ",recipient.eq." + encodeURIComponent(currentUsername) +
+            "))&select=*",
+            {
+                method: "GET",
+                headers: {
+                    "apikey": PUBLISHABLE_API_KEY,
+                    "Authorization": "Bearer " + PUBLISHABLE_API_KEY
+                }
+            }
+        );
+
+        if (!existingResponse.ok) {
+            console.error("Relationship lookup error:", await existingResponse.text());
+            alert("Could not check the existing friend relationship.");
+            return;
+        }
+
+        const existing = await existingResponse.json();
+
+        if (existing.length) {
+
+            const relationship = existing[0];
+
+            if (relationship.status === "accepted") {
+                alert(username + " is already your friend.");
+                return;
+            }
+
+            if (
+                relationship.status === "pending" &&
+                relationship.sender === currentUsername
+            ) {
+                alert("You already sent " + username + " a friend request.");
+                return;
+            }
+
+            if (
+                relationship.status === "pending" &&
+                relationship.recipient === currentUsername
+            ) {
+                alert(username + " already sent you a friend request. Check your requests.");
+                return;
+            }
+        }
+
+        const createResponse = await fetch(
+            DATABASE_API_URL + "/rest/v1/friends",
+            {
+                method: "POST",
+                headers: {
+                    "apikey": PUBLISHABLE_API_KEY,
+                    "Authorization": "Bearer " + PUBLISHABLE_API_KEY,
+                    "Content-Type": "application/json",
+                    "Prefer": "return=representation"
+                },
+                body: JSON.stringify({
+                    sender: currentUsername,
+                    recipient: username,
+                    status: "pending",
+                    created_at: new Date().toISOString()
+                })
+            }
+        );
+
+        if (!createResponse.ok) {
+            console.error("Friend request insert error:", await createResponse.text());
+            alert("Could not send the friend request.");
+            return;
+        }
+
+        searchInput.value = "";
+
+        alert("Friend request sent to " + username + "! 👥");
+
+        await renderFriends();
+
+    } catch (error) {
+        console.error("Friend request error:", error);
+        alert("Something went wrong sending the friend request.");
+    }
+}
+
+
+/* =====================================================
+   ACCEPT FRIEND REQUEST
+   ===================================================== */
+
+async function acceptFriendRequest(id) {
+
+    try {
+
+        const response = await fetch(
+            DATABASE_API_URL +
+            "/rest/v1/friends?id=eq." +
+            encodeURIComponent(id),
+            {
+                method: "PATCH",
+                headers: {
+                    "apikey": PUBLISHABLE_API_KEY,
+                    "Authorization": "Bearer " + PUBLISHABLE_API_KEY,
+                    "Content-Type": "application/json",
+                    "Prefer": "return=representation"
+                },
+                body: JSON.stringify({
+                    status: "accepted"
+                })
+            }
+        );
+
+        if (!response.ok) {
+            console.error("Accept request error:", await response.text());
+            alert("Could not accept the friend request.");
+            return;
+        }
+
+        alert("Friend request accepted! 🎉");
+
+        await renderFriends();
+
+    } catch (error) {
+        console.error("Accept request error:", error);
+        alert("Something went wrong accepting the request.");
+    }
+}
+
+
+/* =====================================================
+   DECLINE FRIEND REQUEST
+   ===================================================== */
+
+async function declineFriendRequest(id) {
+
+    try {
+
+        const response = await fetch(
+            DATABASE_API_URL +
+            "/rest/v1/friends?id=eq." +
+            encodeURIComponent(id),
+            {
+                method: "PATCH",
+                headers: {
+                    "apikey": PUBLISHABLE_API_KEY,
+                    "Authorization": "Bearer " + PUBLISHABLE_API_KEY,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    status: "declined"
+                })
+            }
+        );
+
+        if (!response.ok) {
+            console.error("Decline request error:", await response.text());
+            alert("Could not decline the friend request.");
+            return;
+        }
+
+        await renderFriends();
+
+        alert("Friend request declined.");
+
+    } catch (error) {
+        console.error("Decline request error:", error);
+        alert("Something went wrong declining the request.");
+    }
+}
+
+
+/* =====================================================
+   REMOVE FRIEND
+   ===================================================== */
+
+async function removeFriend(index) {
+
+    const friend = friends[index];
+
+    if (!friend) return;
+
+    const confirmed = confirm(
+        "Remove " + friend.username + " from your friends?"
+    );
+
+    if (!confirmed) return;
+
+    try {
+
+        const response = await fetch(
+            DATABASE_API_URL +
+            "/rest/v1/friends?or=" +
+            "(and(sender.eq." + encodeURIComponent(currentUsername) +
+            ",recipient.eq." + encodeURIComponent(friend.username) +
+            ",status.eq.accepted),and(sender.eq." + encodeURIComponent(friend.username) +
+            ",recipient.eq." + encodeURIComponent(currentUsername) +
+            ",status.eq.accepted))",
+            {
+                method: "DELETE",
+                headers: {
+                    "apikey": PUBLISHABLE_API_KEY,
+                    "Authorization": "Bearer " + PUBLISHABLE_API_KEY
+                }
+            }
+        );
+
+        if (!response.ok) {
+            console.error("Remove friend error:", await response.text());
+            alert("Could not remove this friend.");
+            return;
+        }
+
+        await renderFriends();
+
+        alert(friend.username + " was removed from your friends.");
+
+    } catch (error) {
+        console.error("Remove friend error:", error);
+        alert("Something went wrong removing the friend.");
+    }
+}
+
+
+function messageFriend(username) {
+    showPageById("messages");
+    openConversation(username);
+}
+
+
+function viewFriendProfile(username) {
+
+    const friend = friends.find(function(item) {
+        return item.username.toLowerCase() === username.toLowerCase();
+    });
+
+    if (!friend) return;
+
+    showPageById("profile");
+
+    const profileView = document.getElementById("profileView");
+    const editCard = document.getElementById("editProfileCard");
+
+    editCard.classList.remove("active");
+    profileView.classList.remove("hidden");
+
+    document.getElementById("profileDisplayName").textContent = friend.username;
+    document.getElementById("profileUsername").textContent = "@" + friend.username.toLowerCase();
+    document.getElementById("profileAvatar").textContent = getInitial(friend.username);
+    document.getElementById("profileAbout").textContent = "Veltoria friend profile.";
+    document.getElementById("profileFriendCount").textContent = "—";
+    document.querySelector(".profile-status").textContent = friend.online ? "🟢 Online" : "⚫ Offline";
+    document.getElementById("ownerBadge").style.display = "none";
+
+    const actions = document.querySelector(".profile-actions");
+
+    actions.innerHTML = `
+        <button
+            class="button"
+            onclick="messageFriend('${escapeJs(friend.username)}')"
+        >
+            💬 Message
+        </button>
 
         <button
             class="button secondary"
@@ -3399,25 +3739,21 @@ function viewFriendProfile(username) {
         >
             ← My Profile
         </button>
-
     `;
 }
 
 
 function returnToMyProfile() {
 
-    const actions =
-        document.querySelector(".profile-actions");
+    const actions = document.querySelector(".profile-actions");
 
     actions.innerHTML = `
-
         <button
             class="button secondary"
             onclick="openEditProfile()"
         >
             ⚙️ Edit Profile
         </button>
-
     `;
 
     updateProfileUI();
@@ -3425,21 +3761,15 @@ function returnToMyProfile() {
 
 
 /* Avatar initial */
-
 function getInitial(username) {
 
-    if (!username) {
-        return "?";
-    }
+    if (!username) return "?";
 
-    return username
-        .charAt(0)
-        .toUpperCase();
+    return username.charAt(0).toUpperCase();
 }
 
 
 /* Escape HTML */
-
 function escapeHtml(text) {
 
     return String(text)
@@ -3452,7 +3782,6 @@ function escapeHtml(text) {
 
 
 /* Escape JavaScript */
-
 function escapeJs(text) {
 
     return String(text)
@@ -3467,6 +3796,7 @@ function escapeJs(text) {
    ===================================================== */
 
 let currentConversation = "Alex";
+
 
 let conversations = {
 
@@ -3508,7 +3838,9 @@ let conversations = {
 function openConversation(username) {
 
     if (!conversations[username]) {
+
         conversations[username] = [];
+
     }
 
     currentConversation = username;
@@ -3516,7 +3848,9 @@ function openConversation(username) {
     document
         .querySelectorAll(".conversation")
         .forEach(function(conversation) {
+
             conversation.classList.remove("active");
+
         });
 
     const selected =
@@ -3525,7 +3859,9 @@ function openConversation(username) {
         );
 
     if (selected) {
+
         selected.classList.add("active");
+
     }
 
     const chatName =
@@ -3537,15 +3873,22 @@ function openConversation(username) {
     const chatStatus =
         document.getElementById("chatStatus");
 
+
     if (chatName) {
+
         chatName.textContent =
             username;
+
     }
 
+
     if (chatAvatar) {
+
         chatAvatar.textContent =
             getInitial(username);
+
     }
+
 
     if (chatStatus) {
 
@@ -3563,9 +3906,12 @@ function openConversation(username) {
                 "⚫ Offline";
 
         }
+
     }
 
+
     renderMessages();
+
 }
 
 
@@ -3577,13 +3923,16 @@ function renderMessages() {
         document.getElementById("messageArea");
 
     if (!messageArea) {
+
         return;
+
     }
 
     messageArea.innerHTML = "";
 
     const messages =
         conversations[currentConversation] || [];
+
 
     if (messages.length === 0) {
 
@@ -3600,7 +3949,9 @@ function renderMessages() {
             </div>
 
         `;
+
     }
+
 
     messages.forEach(function(message) {
 
@@ -3631,10 +3982,13 @@ function renderMessages() {
         messageArea.appendChild(
             messageElement
         );
+
     });
+
 
     messageArea.scrollTop =
         messageArea.scrollHeight;
+
 }
 
 
@@ -3646,19 +4000,26 @@ function sendMessage() {
         document.getElementById("messageInput");
 
     if (!input) {
+
         return;
+
     }
 
     const text =
         input.value.trim();
 
     if (!text) {
+
         return;
+
     }
 
     if (!conversations[currentConversation]) {
+
         conversations[currentConversation] = [];
+
     }
+
 
     conversations[currentConversation].push({
 
@@ -3670,11 +4031,13 @@ function sendMessage() {
 
     });
 
+
     input.value = "";
 
     renderMessages();
 
     input.focus();
+
 }
 
 
@@ -3687,7 +4050,9 @@ function handleMessageKey(event) {
         event.preventDefault();
 
         sendMessage();
+
     }
+
 }
 
 
@@ -3696,6 +4061,7 @@ function handleMessageKey(event) {
 function initializeMessages() {
 
     openConversation(currentConversation);
+
 }
 
 
@@ -3705,61 +4071,52 @@ function initializeMessages() {
 
 document.addEventListener("DOMContentLoaded", function() {
 
-    const capButton =
-        document.getElementById("marketplaceCapButton");
-
-    const shirtButton =
-        document.getElementById("marketplaceShirtButton");
-
-    const glowButton =
-        document.getElementById("marketplaceGlowButton");
+    const capButton = document.getElementById("marketplaceCapButton");
+    const shirtButton = document.getElementById("marketplaceShirtButton");
+    const glowButton = document.getElementById("marketplaceGlowButton");
 
     if (capButton) {
-
         capButton.addEventListener("click", function() {
-
             viewMarketplaceItem(
                 "Veltoria Cap",
                 "🧢",
                 1,
                 "A classic Veltoria cap for your avatar."
             );
-
         });
-
     }
 
     if (shirtButton) {
-
         shirtButton.addEventListener("click", function() {
-
             viewMarketplaceItem(
                 "V Shirt",
                 "👕",
                 250,
                 "Show off the Veltoria style with the V Shirt."
             );
-
         });
-
     }
 
     if (glowButton) {
-
         glowButton.addEventListener("click", function() {
-
             viewMarketplaceItem(
                 "Glow Effect",
                 "✨",
                 500,
                 "A glowing effect for your Veltoria avatar."
             );
-
         });
-
     }
 
 });
+
+
+/* =====================================================
+   VELTORIA DATABASE CONFIGURATION
+   ===================================================== */
+
+const DATABASE_API_URL = "https://nvkysrcexmtqediiyswg.supabase.co";
+const PUBLISHABLE_API_KEY = "sb_publishable_20HcXeHutH_vjpF5Er4Odg_ukFwqqzi";
 
 
 /* =====================================================
@@ -3767,13 +4124,6 @@ document.addEventListener("DOMContentLoaded", function() {
    ===================================================== */
 
 applySettings();
-
-/* =====================================================
-   VELTORIA DATABASE CONNECTION
-   ===================================================== */
-
-const DATABASE_API_URL = "https://nvkysrcexmtqediiyswg.supabase.co";
-const PUBLISHABLE_API_KEY = "sb_publishable_20HcXeHutH_vjpF5Er4Odg_ukFwqqzi";
 
 </script>
 
