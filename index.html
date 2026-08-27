@@ -3426,10 +3426,20 @@ function startFriendRequestAutoRefresh() {
 async function sendFriendRequest() {
 
     const searchInput = document.getElementById("friendSearch");
-    const username = searchInput ? searchInput.value.trim() : "";
+
+    // Allow either "username" or "@username".
+    let username = searchInput ? searchInput.value.trim() : "";
+    username = username.replace(/^@+/, "").trim();
 
     if (!username) {
         alert("Type a username into the search box first.");
+        return;
+    }
+
+    if (!DATABASE_API_URL || !PUBLISHABLE_API_KEY ||
+        DATABASE_API_URL.includes("PASTE YOUR") ||
+        PUBLISHABLE_API_KEY.includes("PASTE YOUR")) {
+        alert("Veltoria's database connection is not configured yet.");
         return;
     }
 
@@ -3440,23 +3450,26 @@ async function sendFriendRequest() {
 
     try {
 
+        // Find the user case-insensitively.
         const userResponse = await fetch(
             DATABASE_API_URL +
-            "/rest/v1/users?username=eq." +
+            "/rest/v1/users?username=ilike." +
             encodeURIComponent(username) +
-            "&select=username",
+            "&select=username&limit=1",
             {
                 method: "GET",
                 headers: {
                     "apikey": PUBLISHABLE_API_KEY,
-                    "Authorization": "Bearer " + PUBLISHABLE_API_KEY
+                    "Authorization": "Bearer " + PUBLISHABLE_API_KEY,
+                    "Accept": "application/json"
                 }
             }
         );
 
         if (!userResponse.ok) {
-            console.error("User lookup error:", await userResponse.text());
-            alert("Could not search for that user.");
+            const errorText = await userResponse.text();
+            console.error("User lookup error:", errorText);
+            alert("Could not search for that user. Check the browser console for the database error.");
             return;
         }
 
@@ -3467,53 +3480,67 @@ async function sendFriendRequest() {
             return;
         }
 
+        // Use the exact username stored in the users table.
+        const targetUsername = users[0].username;
+
+        if (targetUsername.toLowerCase() === currentUsername.toLowerCase()) {
+            alert("You can't send yourself a friend request.");
+            return;
+        }
+
+        // Check both directions before creating a new relationship.
         const existingResponse = await fetch(
             DATABASE_API_URL +
             "/rest/v1/friends?or=" +
             "(and(sender.eq." + encodeURIComponent(currentUsername) +
-            ",recipient.eq." + encodeURIComponent(username) +
-            "),and(sender.eq." + encodeURIComponent(username) +
+            ",recipient.eq." + encodeURIComponent(targetUsername) +
+            "),and(sender.eq." + encodeURIComponent(targetUsername) +
             ",recipient.eq." + encodeURIComponent(currentUsername) +
             "))&select=*",
             {
                 method: "GET",
                 headers: {
                     "apikey": PUBLISHABLE_API_KEY,
-                    "Authorization": "Bearer " + PUBLISHABLE_API_KEY
+                    "Authorization": "Bearer " + PUBLISHABLE_API_KEY,
+                    "Accept": "application/json"
                 }
             }
         );
 
         if (!existingResponse.ok) {
-            console.error("Relationship lookup error:", await existingResponse.text());
+            const errorText = await existingResponse.text();
+            console.error("Relationship lookup error:", errorText);
             alert("Could not check the existing friend relationship.");
             return;
         }
 
         const existing = await existingResponse.json();
 
-        if (existing.length) {
+        const activeRelationship = existing.find(function(relationship) {
+            return relationship.status === "pending" ||
+                   relationship.status === "accepted";
+        });
 
-            const relationship = existing[0];
+        if (activeRelationship) {
 
-            if (relationship.status === "accepted") {
-                alert(username + " is already your friend.");
+            if (activeRelationship.status === "accepted") {
+                alert(targetUsername + " is already your friend.");
                 return;
             }
 
             if (
-                relationship.status === "pending" &&
-                relationship.sender === currentUsername
+                activeRelationship.status === "pending" &&
+                activeRelationship.sender === currentUsername
             ) {
-                alert("You already sent " + username + " a friend request.");
+                alert("You already sent " + targetUsername + " a friend request.");
                 return;
             }
 
             if (
-                relationship.status === "pending" &&
-                relationship.recipient === currentUsername
+                activeRelationship.status === "pending" &&
+                activeRelationship.recipient === currentUsername
             ) {
-                alert(username + " already sent you a friend request. Check your requests.");
+                alert(targetUsername + " already sent you a friend request. Check your requests.");
                 return;
             }
         }
@@ -3530,7 +3557,7 @@ async function sendFriendRequest() {
                 },
                 body: JSON.stringify({
                     sender: currentUsername,
-                    recipient: username,
+                    recipient: targetUsername,
                     status: "pending",
                     created_at: new Date().toISOString()
                 })
@@ -3538,14 +3565,17 @@ async function sendFriendRequest() {
         );
 
         if (!createResponse.ok) {
-            console.error("Friend request insert error:", await createResponse.text());
-            alert("Could not send the friend request.");
+            const errorText = await createResponse.text();
+            console.error("Friend request insert error:", errorText);
+            alert("Could not send the friend request. Check the browser console for the database error.");
             return;
         }
 
-        searchInput.value = "";
+        if (searchInput) {
+            searchInput.value = "";
+        }
 
-        alert("Friend request sent to " + username + "! 👥");
+        alert("Friend request sent to " + targetUsername + "! 👥");
 
         await renderFriends();
 
