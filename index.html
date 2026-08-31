@@ -608,6 +608,46 @@ h1 {
     margin-bottom: 10px;
 }
 
+/* USER SEARCH RESULTS */
+
+.user-search-results {
+    margin-top: 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.user-search-title {
+    font-size: 14px;
+    font-weight: bold;
+    color: #a9a9b5;
+    margin-bottom: 2px;
+}
+
+.user-result-card {
+    background: #181820;
+    border: 1px solid #292934;
+    border-radius: 13px;
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.user-result-card .friend-info {
+    flex: 1;
+}
+
+.user-result-card .button {
+    flex-shrink: 0;
+}
+
+body.light-mode .user-result-card {
+    background: #ffffff;
+    color: #181820;
+    border-color: #d7d7df;
+}
+
 .empty-friends {
     padding: 30px;
     text-align: center;
@@ -1726,6 +1766,8 @@ body.light-mode .marketplace-item-icon {
 
                 </div>
 
+                <div id="userSearchResults" class="user-search-results"></div>
+
                 <div class="friend-count">
                     <span id="friendCount">0</span> Friends
                 </div>
@@ -1977,57 +2019,10 @@ body.light-mode .marketplace-item-icon {
 
                         <h3>💬 Conversations</h3>
 
-                        <div
-                            class="conversation active"
-                            onclick="openConversation('Alex')"
-                            id="conversation-Alex"
-                        >
-
-                            <div class="conversation-avatar">
-                                A
+                        <div id="conversationList">
+                            <div class="muted" style="padding:10px;">
+                                Loading conversations...
                             </div>
-
-                            <div class="conversation-info">
-                                <strong>Alex</strong>
-                                <span>🟢 Online</span>
-                            </div>
-
-                        </div>
-
-
-                        <div
-                            class="conversation"
-                            onclick="openConversation('Jamie')"
-                            id="conversation-Jamie"
-                        >
-
-                            <div class="conversation-avatar">
-                                J
-                            </div>
-
-                            <div class="conversation-info">
-                                <strong>Jamie</strong>
-                                <span>⚫ Offline</span>
-                            </div>
-
-                        </div>
-
-
-                        <div
-                            class="conversation"
-                            onclick="openConversation('Morgan')"
-                            id="conversation-Morgan"
-                        >
-
-                            <div class="conversation-avatar">
-                                M
-                            </div>
-
-                            <div class="conversation-info">
-                                <strong>Morgan</strong>
-                                <span>🟢 Online</span>
-                            </div>
-
                         </div>
 
                     </div>
@@ -2038,13 +2033,13 @@ body.light-mode .marketplace-item-icon {
                         <div class="chat-header">
 
                             <div class="conversation-avatar">
-                                <span id="chatAvatar">A</span>
+                                <span id="chatAvatar">?</span>
                             </div>
 
                             <div>
 
                                 <strong id="chatName">
-                                    Alex
+                                    Select a friend
                                 </strong>
 
                                 <div
@@ -2052,7 +2047,7 @@ body.light-mode .marketplace-item-icon {
                                     class="muted"
                                     style="font-size:13px;"
                                 >
-                                    🟢 Online
+                                    Choose a conversation to start chatting.
                                 </div>
 
                             </div>
@@ -2063,7 +2058,11 @@ body.light-mode .marketplace-item-icon {
                         <div
                             id="messageArea"
                             class="message-area"
-                        ></div>
+                        >
+                            <div class="muted" style="text-align:center;margin:auto;">
+                                💬 Select a friend to view your messages.
+                            </div>
+                        </div>
 
 
                         <div class="chat-input-area">
@@ -2072,13 +2071,16 @@ body.light-mode .marketplace-item-icon {
                                 id="messageInput"
                                 class="input"
                                 type="text"
-                                placeholder="Type a message..."
+                                placeholder="Select a friend first..."
                                 onkeydown="handleMessageKey(event)"
+                                disabled
                             >
 
                             <button
+                                id="sendMessageButton"
                                 class="button"
                                 onclick="sendMessage()"
+                                disabled
                             >
                                 ➤ Send
                             </button>
@@ -2379,6 +2381,17 @@ let profileData = {
     visits: 12
 };
 
+/* Restore the real logged-in username for this browser session. */
+try {
+    const savedUsername = sessionStorage.getItem("veltoriaCurrentUsername");
+    if (savedUsername) {
+        currentUsername = savedUsername;
+        profileData.displayName = savedUsername;
+    }
+} catch (error) {
+    console.warn("Could not restore the Veltoria session:", error);
+}
+
 
 /* =====================================================
    SYSTEM #6 — MARKETPLACE
@@ -2599,44 +2612,47 @@ function showAuthPage(pageId) {
 async function resolveCurrentUsername(loginValue) {
 
     const value = String(loginValue || "").trim();
+    if (!value) return null;
 
-    if (!value) {
+    if (
+        DATABASE_API_URL.includes("PASTE YOUR") ||
+        PUBLISHABLE_API_KEY.includes("PASTE YOUR")
+    ) {
         return value;
     }
 
-    if (value.includes("@")) {
-
-        try {
-
-            const response = await fetch(
-                DATABASE_API_URL +
-                "/rest/v1/users?email=eq." +
-                encodeURIComponent(value) +
-                "&select=username&limit=1",
-                {
-                    method: "GET",
-                    headers: {
-                        "apikey": PUBLISHABLE_API_KEY,
-                        "Authorization": "Bearer " + PUBLISHABLE_API_KEY
-                    }
-                }
-            );
-
-            if (response.ok) {
-                const rows = await response.json();
-                if (rows.length && rows[0].username) {
-                    return rows[0].username;
+    try {
+        const column = value.includes("@") ? "email" : "username";
+        const response = await fetch(
+            DATABASE_API_URL +
+            "/rest/v1/users?" + column + "=ilike." +
+            encodeURIComponent(value) +
+            "&select=username&limit=1",
+            {
+                method: "GET",
+                headers: {
+                    "apikey": PUBLISHABLE_API_KEY,
+                    "Authorization": "Bearer " + PUBLISHABLE_API_KEY
                 }
             }
+        );
 
-        } catch (error) {
-            console.warn("Could not resolve email to username:", error);
+        if (!response.ok) {
+            console.error("Login user lookup failed:", await response.text());
+            return null;
         }
+
+        const rows = await response.json();
+        if (rows.length && rows[0].username) {
+            return String(rows[0].username).trim();
+        }
+    } catch (error) {
+        console.error("Could not resolve the logged-in user:", error);
+        return null;
     }
 
-    return value;
+    return null;
 }
-
 
 /* LOGIN */
 
@@ -2662,7 +2678,17 @@ async function login() {
         return;
     }
 
-    currentUsername = await resolveCurrentUsername(username);
+    const resolvedUsername = await resolveCurrentUsername(username);
+
+    if (!resolvedUsername) {
+        alert("That Veltoria account could not be found in the users table.");
+        return;
+    }
+
+    currentUsername = resolvedUsername;
+
+    // Keep the real logged-in username for Friends, Messages, Profile, and Settings.
+    sessionStorage.setItem("veltoriaCurrentUsername", currentUsername);
 
     profileData.displayName = currentUsername;
 
@@ -2671,7 +2697,7 @@ async function login() {
     updateSettingsUI();
 
     if (
-        username.toLowerCase() ===
+        currentUsername.toLowerCase() ===
         "sylisveltaowner"
     ) {
 
@@ -2704,7 +2730,7 @@ async function login() {
     startFriendRequestAutoRefresh();
 
     alert(
-        "Welcome to Veltoria, " + username + "! 🎉"
+        "Welcome to Veltoria, " + currentUsername + "! 🎉"
     );
 
 }
@@ -3263,6 +3289,9 @@ async function renderFriends() {
         ? searchInput.value.trim().toLowerCase()
         : "";
 
+    /* Search the whole USERS table, not just the current friend list. */
+    await searchAllUsersForFriends(search);
+
     friendCount.textContent = friends.length;
     requestCount.textContent = friendRequests.length;
 
@@ -3426,42 +3455,189 @@ function startFriendRequestAutoRefresh() {
 async function sendFriendRequest() {
 
     const searchInput = document.getElementById("friendSearch");
+    let enteredUsername = searchInput ? searchInput.value.trim() : "";
 
-    // Allow either "username" or "@username".
-    let username = searchInput ? searchInput.value.trim() : "";
-    username = username.replace(/^@+/, "").trim();
-
-    if (!username) {
+    if (!enteredUsername) {
         alert("Type a username into the search box first.");
         return;
     }
 
-    if (!DATABASE_API_URL || !PUBLISHABLE_API_KEY ||
-        DATABASE_API_URL.includes("PASTE YOUR") ||
-        PUBLISHABLE_API_KEY.includes("PASTE YOUR")) {
-        alert("Veltoria's database connection is not configured yet.");
-        return;
-    }
+    /* Allow both catdog and @catdog */
+    enteredUsername = enteredUsername.replace(/^@+/, "").trim();
 
-    if (username.toLowerCase() === currentUsername.toLowerCase()) {
-        alert("You can't send yourself a friend request.");
+    await sendFriendRequestToUsername(enteredUsername);
+}
+
+
+/* =====================================================
+   SEARCH ALL VELTORIA USERS
+   Searches the USERS table, not just the current user's friends.
+   You can search by username OR email, but only the username is shown.
+   ===================================================== */
+
+async function searchAllUsersForFriends(searchTerm) {
+
+    const resultsContainer = document.getElementById("userSearchResults");
+
+    if (!resultsContainer) return;
+
+    resultsContainer.innerHTML = "";
+
+    const term = String(searchTerm || "")
+        .trim()
+        .replace(/^@+/, "");
+
+    if (!term) return;
+
+    if (
+        DATABASE_API_URL.includes("PASTE YOUR") ||
+        PUBLISHABLE_API_KEY.includes("PASTE YOUR")
+    ) {
         return;
     }
 
     try {
 
-        // Find the user case-insensitively.
+        const encodedTerm = encodeURIComponent(term);
+
+        const userResponse = await fetch(
+            DATABASE_API_URL +
+            "/rest/v1/users?or=" +
+            encodeURIComponent(
+                "(username.ilike.*" + term + "*,email.ilike.*" + term + "*)"
+            ) +
+            "&select=username&limit=20",
+            {
+                method: "GET",
+                headers: {
+                    "apikey": PUBLISHABLE_API_KEY,
+                    "Authorization": "Bearer " + PUBLISHABLE_API_KEY
+                }
+            }
+        );
+
+        if (!userResponse.ok) {
+            console.error("User search error:", await userResponse.text());
+            return;
+        }
+
+        const users = await userResponse.json();
+
+        /* Never show the currently logged-in account as an addable result. */
+        const filteredUsers = users.filter(function(user) {
+            return user.username &&
+                String(user.username).trim().toLowerCase() !==
+                String(currentUsername || "").trim().toLowerCase();
+        });
+
+        if (filteredUsers.length === 0) {
+            resultsContainer.innerHTML = `
+                <div class="empty-friends">
+                    🔎 No Veltoria users matched "${escapeHtml(term)}".
+                </div>
+            `;
+            return;
+        }
+
+        const title = document.createElement("div");
+        title.className = "user-search-title";
+        title.textContent = "👤 Veltoria users";
+        resultsContainer.appendChild(title);
+
+        filteredUsers.forEach(function(user) {
+
+            const username = String(user.username).trim();
+            const card = document.createElement("div");
+            card.className = "user-result-card";
+
+            const avatar = document.createElement("div");
+            avatar.className = "friend-avatar";
+            avatar.textContent = getInitial(username);
+
+            const info = document.createElement("div");
+            info.className = "friend-info";
+
+            const name = document.createElement("div");
+            name.className = "friend-name";
+            name.textContent = username;
+
+            const status = document.createElement("div");
+            status.className = "muted";
+            status.textContent = "Veltoria user";
+
+            info.appendChild(name);
+            info.appendChild(status);
+
+            const button = document.createElement("button");
+            button.className = "button";
+            button.type = "button";
+            button.textContent = "➕ Add Friend";
+            button.addEventListener("click", function() {
+                sendFriendRequestToUsername(username);
+            });
+
+            card.appendChild(avatar);
+            card.appendChild(info);
+            card.appendChild(button);
+            resultsContainer.appendChild(card);
+        });
+
+    } catch (error) {
+        console.error("Could not search Veltoria users:", error);
+    }
+}
+
+
+/* =====================================================
+   SEND A FRIEND REQUEST TO A SPECIFIC USERNAME
+   ===================================================== */
+
+async function sendFriendRequestToUsername(usernameToAdd) {
+
+    let enteredUsername = String(usernameToAdd || "")
+        .trim()
+        .replace(/^@+/, "");
+
+    if (!enteredUsername) {
+        alert("Enter a valid Veltoria username.");
+        return;
+    }
+
+    const normalizedCurrent = String(currentUsername || "")
+        .trim()
+        .replace(/^@+/, "")
+        .toLowerCase();
+
+    if (enteredUsername.toLowerCase() === normalizedCurrent) {
+        alert("You can't send yourself a friend request.");
+        return;
+    }
+
+    if (
+        DATABASE_API_URL.includes("PASTE YOUR") ||
+        PUBLISHABLE_API_KEY.includes("PASTE YOUR")
+    ) {
+        alert("Veltoria's database connection has not been configured yet.");
+        return;
+    }
+
+    try {
+
+        /* -------------------------------------------------
+           FIND THE REAL USERNAME IN THE USERS TABLE.
+           This searches the actual USERS table, not a hardcoded list.
+           Username matching is case-insensitive.
+           ------------------------------------------------- */
         const userResponse = await fetch(
             DATABASE_API_URL +
             "/rest/v1/users?username=ilike." +
-            encodeURIComponent(username) +
+            encodeURIComponent(enteredUsername) +
             "&select=username&limit=1",
             {
                 method: "GET",
                 headers: {
                     "apikey": PUBLISHABLE_API_KEY,
-                    "Authorization": "Bearer " + PUBLISHABLE_API_KEY,
-                    "Accept": "application/json"
+                    "Authorization": "Bearer " + PUBLISHABLE_API_KEY
                 }
             }
         );
@@ -3469,40 +3645,42 @@ async function sendFriendRequest() {
         if (!userResponse.ok) {
             const errorText = await userResponse.text();
             console.error("User lookup error:", errorText);
-            alert("Could not search for that user. Check the browser console for the database error.");
+            alert("Could not search for that user.\n\nDatabase says:\n" + errorText);
             return;
         }
 
         const users = await userResponse.json();
 
-        if (!users.length) {
-            alert("That Veltoria user doesn't exist.");
+        if (!users.length || !users[0].username) {
+            alert("That Veltoria user doesn't exist. Search for them in the user results below.");
             return;
         }
 
-        // Use the exact username stored in the users table.
-        const targetUsername = users[0].username;
+        /* Always use the exact username stored in the database. */
+        const targetUsername = String(users[0].username).trim();
 
-        if (targetUsername.toLowerCase() === currentUsername.toLowerCase()) {
+        if (targetUsername.toLowerCase() === normalizedCurrent) {
             alert("You can't send yourself a friend request.");
             return;
         }
 
-        // Check both directions before creating a new relationship.
+        /* -------------------------------------------------
+           CHECK FOR AN EXISTING REQUEST / FRIENDSHIP
+           ------------------------------------------------- */
+        const current = encodeURIComponent(String(currentUsername).trim());
+        const target = encodeURIComponent(targetUsername);
+
         const existingResponse = await fetch(
             DATABASE_API_URL +
             "/rest/v1/friends?or=" +
-            "(and(sender.eq." + encodeURIComponent(currentUsername) +
-            ",recipient.eq." + encodeURIComponent(targetUsername) +
-            "),and(sender.eq." + encodeURIComponent(targetUsername) +
-            ",recipient.eq." + encodeURIComponent(currentUsername) +
-            "))&select=*",
+            "(and(sender.eq." + current + ",recipient.eq." + target + ")," +
+            "and(sender.eq." + target + ",recipient.eq." + current + "))" +
+            "&select=id,sender,recipient,status",
             {
                 method: "GET",
                 headers: {
                     "apikey": PUBLISHABLE_API_KEY,
-                    "Authorization": "Bearer " + PUBLISHABLE_API_KEY,
-                    "Accept": "application/json"
+                    "Authorization": "Bearer " + PUBLISHABLE_API_KEY
                 }
             }
         );
@@ -3510,41 +3688,40 @@ async function sendFriendRequest() {
         if (!existingResponse.ok) {
             const errorText = await existingResponse.text();
             console.error("Relationship lookup error:", errorText);
-            alert("Could not check the existing friend relationship.");
+            alert("Could not check the friend relationship.\n\nDatabase says:\n" + errorText);
             return;
         }
 
         const existing = await existingResponse.json();
 
-        const activeRelationship = existing.find(function(relationship) {
-            return relationship.status === "pending" ||
-                   relationship.status === "accepted";
-        });
+        if (existing.length) {
+            const relationship = existing[0];
 
-        if (activeRelationship) {
-
-            if (activeRelationship.status === "accepted") {
+            if (relationship.status === "accepted") {
                 alert(targetUsername + " is already your friend.");
                 return;
             }
 
             if (
-                activeRelationship.status === "pending" &&
-                activeRelationship.sender === currentUsername
+                relationship.status === "pending" &&
+                String(relationship.sender).toLowerCase() === normalizedCurrent
             ) {
                 alert("You already sent " + targetUsername + " a friend request.");
                 return;
             }
 
             if (
-                activeRelationship.status === "pending" &&
-                activeRelationship.recipient === currentUsername
+                relationship.status === "pending" &&
+                String(relationship.recipient).toLowerCase() === normalizedCurrent
             ) {
                 alert(targetUsername + " already sent you a friend request. Check your requests.");
                 return;
             }
         }
 
+        /* -------------------------------------------------
+           CREATE THE REQUEST
+           ------------------------------------------------- */
         const createResponse = await fetch(
             DATABASE_API_URL + "/rest/v1/friends",
             {
@@ -3556,7 +3733,7 @@ async function sendFriendRequest() {
                     "Prefer": "return=representation"
                 },
                 body: JSON.stringify({
-                    sender: currentUsername,
+                    sender: String(currentUsername).trim(),
                     recipient: targetUsername,
                     status: "pending",
                     created_at: new Date().toISOString()
@@ -3567,13 +3744,19 @@ async function sendFriendRequest() {
         if (!createResponse.ok) {
             const errorText = await createResponse.text();
             console.error("Friend request insert error:", errorText);
-            alert("Could not send the friend request. Check the browser console for the database error.");
+            alert(
+                "Could not send the friend request.\n\nDatabase says:\n" +
+                errorText +
+                "\n\nIf this mentions RLS or row-level security, the friends table needs an INSERT policy in Supabase."
+            );
             return;
         }
 
-        if (searchInput) {
-            searchInput.value = "";
-        }
+        const searchInput = document.getElementById("friendSearch");
+        if (searchInput) searchInput.value = "";
+
+        const resultsContainer = document.getElementById("userSearchResults");
+        if (resultsContainer) resultsContainer.innerHTML = "";
 
         alert("Friend request sent to " + targetUsername + "! 👥");
 
@@ -3581,7 +3764,7 @@ async function sendFriendRequest() {
 
     } catch (error) {
         console.error("Friend request error:", error);
-        alert("Something went wrong sending the friend request.");
+        alert("Something went wrong sending the friend request.\n\n" + error.message);
     }
 }
 
@@ -3822,276 +4005,380 @@ function escapeJs(text) {
 
 
 /* =====================================================
-   SYSTEM #6 — MESSAGES
+   SYSTEM #6 — REAL SUPABASE MESSAGES
    ===================================================== */
 
-let currentConversation = "Alex";
+let currentConversation = null;
+let messageRefreshTimer = null;
+let messageRequestInProgress = false;
 
 
-let conversations = {
+/* Format a database timestamp for the chat UI. */
+function formatMessageTime(timestamp) {
+    if (!timestamp) return "Now";
 
-    Alex: [
+    const date = new Date(timestamp);
 
-        {
-            sender: "Alex",
-            text: "Hey! Want to play?",
-            time: "Now"
-        }
-
-    ],
-
-    Jamie: [
-
-        {
-            sender: "Jamie",
-            text: "Hey Sylis!",
-            time: "Earlier"
-        }
-
-    ],
-
-    Morgan: [
-
-        {
-            sender: "Morgan",
-            text: "What's up?",
-            time: "Earlier"
-        }
-
-    ]
-
-};
-
-
-/* Open Conversation */
-
-function openConversation(username) {
-
-    if (!conversations[username]) {
-
-        conversations[username] = [];
-
+    if (Number.isNaN(date.getTime())) {
+        return "Now";
     }
 
-    currentConversation = username;
-
-    document
-        .querySelectorAll(".conversation")
-        .forEach(function(conversation) {
-
-            conversation.classList.remove("active");
-
-        });
-
-    const selected =
-        document.getElementById(
-            "conversation-" + username
-        );
-
-    if (selected) {
-
-        selected.classList.add("active");
-
-    }
-
-    const chatName =
-        document.getElementById("chatName");
-
-    const chatAvatar =
-        document.getElementById("chatAvatar");
-
-    const chatStatus =
-        document.getElementById("chatStatus");
-
-
-    if (chatName) {
-
-        chatName.textContent =
-            username;
-
-    }
-
-
-    if (chatAvatar) {
-
-        chatAvatar.textContent =
-            getInitial(username);
-
-    }
-
-
-    if (chatStatus) {
-
-        if (
-            username === "Alex" ||
-            username === "Morgan"
-        ) {
-
-            chatStatus.textContent =
-                "🟢 Online";
-
-        } else {
-
-            chatStatus.textContent =
-                "⚫ Offline";
-
-        }
-
-    }
-
-
-    renderMessages();
-
+    return date.toLocaleString([], {
+        month: "short",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit"
+    });
 }
 
 
-/* Render Messages */
+/* Check whether the database connection has been configured. */
+function messagesDatabaseReady() {
+    return !DATABASE_API_URL.includes("PASTE YOUR") &&
+           !PUBLISHABLE_API_KEY.includes("PASTE YOUR");
+}
 
-function renderMessages() {
 
-    const messageArea =
-        document.getElementById("messageArea");
+/* =====================================================
+   LOAD REAL CONVERSATIONS FROM FRIENDS
+   ===================================================== */
+async function loadMessageConversations() {
+    const list = document.getElementById("conversationList");
+    if (!list) return;
 
-    if (!messageArea) {
+    list.innerHTML = "";
 
+    if (!currentUsername) {
+        list.innerHTML = `
+            <div class="muted" style="padding:10px;">
+                You need to be signed in to use Messages.
+            </div>
+        `;
         return;
-
     }
+
+    if (!messagesDatabaseReady()) {
+        list.innerHTML = `
+            <div class="muted" style="padding:10px;">
+                Connect Veltoria's database to load conversations.
+            </div>
+        `;
+        return;
+    }
+
+    await loadFriendsFromDatabase();
+
+    if (!friends.length) {
+        list.innerHTML = `
+            <div class="muted" style="padding:10px;">
+                👥 Add some friends first to start messaging.
+            </div>
+        `;
+        setMessageComposerEnabled(false);
+        return;
+    }
+
+    friends.forEach(function(friend) {
+        const username = String(friend.username || "").trim();
+        if (!username) return;
+
+        const conversation = document.createElement("div");
+        conversation.className = "conversation";
+        conversation.dataset.username = username;
+
+        const avatar = document.createElement("div");
+        avatar.className = "conversation-avatar";
+        avatar.textContent = getInitial(username);
+
+        const info = document.createElement("div");
+        info.className = "conversation-info";
+
+        const name = document.createElement("strong");
+        name.textContent = username;
+
+        const status = document.createElement("span");
+        status.textContent = friend.online ? "🟢 Online" : "⚫ Offline";
+
+        info.appendChild(name);
+        info.appendChild(status);
+        conversation.appendChild(avatar);
+        conversation.appendChild(info);
+
+        conversation.addEventListener("click", function() {
+            openConversation(username);
+        });
+
+        list.appendChild(conversation);
+    });
+
+    updateConversationSelection();
+}
+
+
+function updateConversationSelection() {
+    document.querySelectorAll("#conversationList .conversation").forEach(function(item) {
+        item.classList.toggle(
+            "active",
+            String(item.dataset.username || "").toLowerCase() ===
+            String(currentConversation || "").toLowerCase()
+        );
+    });
+}
+
+
+/* =====================================================
+   OPEN A REAL CONVERSATION
+   ===================================================== */
+async function openConversation(username) {
+    username = String(username || "").trim();
+    if (!username || !currentUsername) return;
+
+    currentConversation = username;
+    updateConversationSelection();
+
+    const chatName = document.getElementById("chatName");
+    const chatAvatar = document.getElementById("chatAvatar");
+    const chatStatus = document.getElementById("chatStatus");
+
+    if (chatName) chatName.textContent = username;
+    if (chatAvatar) chatAvatar.textContent = getInitial(username);
+
+    const friend = friends.find(function(item) {
+        return String(item.username).toLowerCase() === username.toLowerCase();
+    });
+
+    if (chatStatus) {
+        chatStatus.textContent = friend && friend.online
+            ? "🟢 Online"
+            : "⚫ Offline";
+    }
+
+    setMessageComposerEnabled(true);
+    await loadMessagesFromDatabase();
+}
+
+
+/* =====================================================
+   LOAD MESSAGES FROM SUPABASE
+   ===================================================== */
+async function loadMessagesFromDatabase() {
+    const messageArea = document.getElementById("messageArea");
+    if (!messageArea || !currentConversation || !currentUsername) return;
+    if (!messagesDatabaseReady()) return;
+    if (messageRequestInProgress) return;
+
+    messageRequestInProgress = true;
+
+    try {
+        const me = encodeURIComponent(String(currentUsername).trim());
+        const other = encodeURIComponent(String(currentConversation).trim());
+        const filter = encodeURIComponent(
+            "(and(sender.eq." + me + ",recipient.eq." + other + ")," +
+            "and(sender.eq." + other + ",recipient.eq." + me + "))"
+        );
+
+        const response = await fetch(
+            DATABASE_API_URL +
+            "/rest/v1/messages?or=" + filter +
+            "&select=id,sender,recipient,message,created_at" +
+            "&order=created_at.asc",
+            {
+                method: "GET",
+                headers: {
+                    "apikey": PUBLISHABLE_API_KEY,
+                    "Authorization": "Bearer " + PUBLISHABLE_API_KEY
+                }
+            }
+        );
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error("Supabase messages error:", errorText);
+            messageArea.innerHTML = `
+                <div class="muted" style="text-align:center;margin:auto;">
+                    ⚠️ Couldn't load messages.<br>
+                    Check your messages table and Supabase RLS policies.
+                </div>
+            `;
+            return;
+        }
+
+        const rows = await response.json();
+        renderMessages(rows);
+
+    } catch (error) {
+        console.error("Could not load messages:", error);
+        messageArea.innerHTML = `
+            <div class="muted" style="text-align:center;margin:auto;">
+                ⚠️ Couldn't connect to Veltoria Messages.
+            </div>
+        `;
+    } finally {
+        messageRequestInProgress = false;
+    }
+}
+
+
+/* =====================================================
+   RENDER REAL MESSAGES
+   ===================================================== */
+function renderMessages(messages) {
+    const messageArea = document.getElementById("messageArea");
+    if (!messageArea) return;
 
     messageArea.innerHTML = "";
 
-    const messages =
-        conversations[currentConversation] || [];
-
-
-    if (messages.length === 0) {
-
+    if (!messages || messages.length === 0) {
         messageArea.innerHTML = `
-
-            <div
-                class="muted"
-                style="
-                    text-align:center;
-                    margin:auto;
-                "
-            >
+            <div class="muted" style="text-align:center;margin:auto;">
                 💬 No messages yet. Start the conversation!
             </div>
-
         `;
-
+        return;
     }
-
 
     messages.forEach(function(message) {
+        const messageElement = document.createElement("div");
+        const isMine = String(message.sender || "").toLowerCase() ===
+                       String(currentUsername || "").toLowerCase();
 
-        const messageElement =
-            document.createElement("div");
-
-        const isMine =
-            message.sender === "You";
-
-        messageElement.className =
-            "message " +
-            (
-                isMine
-                    ? "sent"
-                    : "received"
-            );
+        messageElement.className = "message " + (isMine ? "sent" : "received");
 
         messageElement.innerHTML = `
-
-            ${escapeHtml(message.text)}
-
+            ${escapeHtml(message.message || "")}
             <span class="message-time">
-                ${escapeHtml(message.time)}
+                ${escapeHtml(formatMessageTime(message.created_at))}
             </span>
-
         `;
 
-        messageArea.appendChild(
-            messageElement
+        messageArea.appendChild(messageElement);
+    });
+
+    messageArea.scrollTop = messageArea.scrollHeight;
+}
+
+
+/* =====================================================
+   SEND A REAL MESSAGE TO SUPABASE
+   ===================================================== */
+async function sendMessage() {
+    const input = document.getElementById("messageInput");
+    if (!input || !currentConversation || !currentUsername) return;
+
+    const text = input.value.trim();
+    if (!text) return;
+
+    if (!messagesDatabaseReady()) {
+        alert("Veltoria's database connection has not been configured yet.");
+        return;
+    }
+
+    const sendButton = document.getElementById("sendMessageButton");
+    if (sendButton) sendButton.disabled = true;
+
+    try {
+        const response = await fetch(
+            DATABASE_API_URL + "/rest/v1/messages",
+            {
+                method: "POST",
+                headers: {
+                    "apikey": PUBLISHABLE_API_KEY,
+                    "Authorization": "Bearer " + PUBLISHABLE_API_KEY,
+                    "Content-Type": "application/json",
+                    "Prefer": "return=representation"
+                },
+                body: JSON.stringify({
+                    sender: String(currentUsername).trim(),
+                    recipient: String(currentConversation).trim(),
+                    message: text,
+                    created_at: new Date().toISOString()
+                })
+            }
         );
 
-    });
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error("Message insert error:", errorText);
+            alert(
+                "Couldn't send the message.\n\nDatabase says:\n" +
+                errorText +
+                "\n\nIf this mentions RLS or row-level security, your messages table needs an INSERT policy."
+            );
+            return;
+        }
 
+        input.value = "";
+        await loadMessagesFromDatabase();
+        input.focus();
 
-    messageArea.scrollTop =
-        messageArea.scrollHeight;
-
+    } catch (error) {
+        console.error("Send message error:", error);
+        alert("Something went wrong sending the message.\n\n" + error.message);
+    } finally {
+        if (sendButton && currentConversation) {
+            sendButton.disabled = false;
+        }
+    }
 }
 
 
-/* Send Message */
-
-function sendMessage() {
-
-    const input =
-        document.getElementById("messageInput");
-
-    if (!input) {
-
-        return;
-
-    }
-
-    const text =
-        input.value.trim();
-
-    if (!text) {
-
-        return;
-
-    }
-
-    if (!conversations[currentConversation]) {
-
-        conversations[currentConversation] = [];
-
-    }
-
-
-    conversations[currentConversation].push({
-
-        sender: "You",
-
-        text: text,
-
-        time: "Now"
-
-    });
-
-
-    input.value = "";
-
-    renderMessages();
-
-    input.focus();
-
-}
-
-
-/* Enter Key */
-
+/* Enter key sends a message. */
 function handleMessageKey(event) {
-
     if (event.key === "Enter") {
-
         event.preventDefault();
-
         sendMessage();
-
     }
-
 }
 
 
-/* Initialize Messages */
+function setMessageComposerEnabled(enabled) {
+    const input = document.getElementById("messageInput");
+    const button = document.getElementById("sendMessageButton");
 
-function initializeMessages() {
+    if (input) {
+        input.disabled = !enabled;
+        input.placeholder = enabled
+            ? "Type a message..."
+            : "Select a friend first...";
+    }
 
-    openConversation(currentConversation);
+    if (button) button.disabled = !enabled;
+}
 
+
+/* =====================================================
+   INITIALIZE MESSAGES
+   ===================================================== */
+async function initializeMessages() {
+    await loadMessageConversations();
+
+    if (friends.length) {
+        const stillValid = friends.some(function(friend) {
+            return String(friend.username).toLowerCase() ===
+                   String(currentConversation || "").toLowerCase();
+        });
+
+        if (!stillValid) {
+            currentConversation = friends[0].username;
+        }
+
+        await openConversation(currentConversation);
+    }
+
+    if (messageRefreshTimer) {
+        clearInterval(messageRefreshTimer);
+    }
+
+    messageRefreshTimer = setInterval(function() {
+        const messagesPage = document.getElementById("messages");
+        if (
+            messagesPage &&
+            messagesPage.classList.contains("active") &&
+            currentConversation
+        ) {
+            loadMessagesFromDatabase();
+        }
+    }, 3000);
 }
 
 
