@@ -4202,8 +4202,8 @@ async function removeFriend(username) {
 
 
 function messageFriend(username) {
+    currentConversation = String(username || "").trim();
     showPageById("messages");
-    openConversation(username);
 }
 
 
@@ -4305,7 +4305,8 @@ function escapeJs(text) {
 
 let currentConversation = null;
 let messageRefreshTimer = null;
-let messageRequestInProgress = false;
+let messageLoadVersion = 0;
+let renderedMessageKey = null;
 
 
 /* Format a database timestamp for the chat UI. */
@@ -4364,12 +4365,14 @@ async function loadMessageConversations() {
     await loadFriendsFromDatabase();
 
     if (!friends.length) {
+        currentConversation = null;
         list.innerHTML = `
             <div class="muted" style="padding:10px;">
                 👥 Add some friends first to start messaging.
             </div>
         `;
         setMessageComposerEnabled(false);
+        resetChatHeader();
         return;
     }
 
@@ -4424,10 +4427,33 @@ function updateConversationSelection() {
 /* =====================================================
    OPEN A REAL CONVERSATION
    ===================================================== */
+function resetChatHeader() {
+    const chatName = document.getElementById("chatName");
+    const chatAvatar = document.getElementById("chatAvatar");
+    const chatStatus = document.getElementById("chatStatus");
+    const messageArea = document.getElementById("messageArea");
+
+    if (chatName) chatName.textContent = "Select a friend";
+    if (chatAvatar) chatAvatar.textContent = "?";
+    if (chatStatus) chatStatus.textContent = "Choose a conversation to start chatting.";
+
+    if (messageArea) {
+        messageArea.innerHTML = `
+            <div class="muted" style="text-align:center;margin:auto;">
+                💬 Select a friend to view your messages.
+            </div>
+        `;
+    }
+
+    renderedMessageKey = null;
+}
+
+
 async function openConversation(username) {
     username = String(username || "").trim();
     if (!username || !currentUsername) return;
 
+    const switching = normalizeFriendName(currentConversation) !== normalizeFriendName(username);
     currentConversation = username;
     updateConversationSelection();
 
@@ -4439,7 +4465,7 @@ async function openConversation(username) {
     if (chatAvatar) chatAvatar.textContent = getInitial(username);
 
     const friend = friends.find(function(item) {
-        return String(item.username).toLowerCase() === username.toLowerCase();
+        return normalizeFriendName(item.username) === normalizeFriendName(username);
     });
 
     if (chatStatus) {
@@ -4447,6 +4473,8 @@ async function openConversation(username) {
             ? "🟢 Online"
             : "⚫ Offline";
     }
+
+    if (switching) renderedMessageKey = null;
 
     setMessageComposerEnabled(true);
     await loadMessagesFromDatabase();
@@ -4456,22 +4484,47 @@ async function openConversation(username) {
 /* =====================================================
    LOAD MESSAGES FROM SUPABASE
    ===================================================== */
+function messageFailureText(errorText, action) {
+    if (/permission denied|42501/i.test(errorText || "")) {
+        return "Couldn't " + action + ". The database denied access to the messages table.";
+    }
+
+    if (/row-level security/i.test(errorText || "")) {
+        return "Couldn't " + action + ". A row-level security policy on the messages table blocked it.";
+    }
+
+    return "Couldn't " + action + ".";
+}
+
+
+function showMessageAreaNotice(text) {
+    const messageArea = document.getElementById("messageArea");
+    if (!messageArea) return;
+
+    const noticeKey = "notice:" + text;
+    if (renderedMessageKey === noticeKey) return;
+    renderedMessageKey = noticeKey;
+    messageArea.innerHTML = `
+        <div class="muted" style="text-align:center;margin:auto;">
+            ${escapeHtml(text)}
+        </div>
+    `;
+}
+
+
 async function loadMessagesFromDatabase() {
     const messageArea = document.getElementById("messageArea");
     if (!messageArea || !currentConversation || !currentUsername) return;
     if (!messagesDatabaseReady()) return;
-    if (messageRequestInProgress) return;
 
-    messageRequestInProgress = true;
+    const version = ++messageLoadVersion;
+    const me = friendFilterValue(currentUsername);
+    const other = friendFilterValue(currentConversation);
+    const filter =
+        "(and(sender.eq." + me + ",recipient.eq." + other + ")," +
+        "and(sender.eq." + other + ",recipient.eq." + me + "))";
 
     try {
-        const me = encodeURIComponent(String(currentUsername).trim());
-        const other = encodeURIComponent(String(currentConversation).trim());
-        const filter = encodeURIComponent(
-            "(and(sender.eq." + me + ",recipient.eq." + other + ")," +
-            "and(sender.eq." + other + ",recipient.eq." + me + "))"
-        );
-
         const response = await fetch(
             DATABASE_API_URL +
             "/rest/v1/messages?or=" + filter +
@@ -4479,37 +4532,27 @@ async function loadMessagesFromDatabase() {
             "&order=created_at.asc",
             {
                 method: "GET",
-                headers: {
-                    "apikey": PUBLISHABLE_API_KEY,
-                    "Authorization": "Bearer " + PUBLISHABLE_API_KEY
-                }
+                headers: friendsAuthHeaders()
             }
         );
+
+        if (version !== messageLoadVersion) return;
 
         if (!response.ok) {
             const errorText = await response.text();
             console.error("Supabase messages error:", errorText);
-            messageArea.innerHTML = `
-                <div class="muted" style="text-align:center;margin:auto;">
-                    ⚠️ Couldn't load messages.<br>
-                    Check your messages table and Supabase RLS policies.
-                </div>
-            `;
+            showMessageAreaNotice(messageFailureText(errorText, "load messages"));
             return;
         }
 
         const rows = await response.json();
+        if (version !== messageLoadVersion) return;
         renderMessages(rows);
 
     } catch (error) {
         console.error("Could not load messages:", error);
-        messageArea.innerHTML = `
-            <div class="muted" style="text-align:center;margin:auto;">
-                ⚠️ Couldn't connect to Veltoria Messages.
-            </div>
-        `;
-    } finally {
-        messageRequestInProgress = false;
+        if (version !== messageLoadVersion) return;
+        showMessageAreaNotice("Couldn't connect to Veltoria Messages.");
     }
 }
 
@@ -4521,9 +4564,17 @@ function renderMessages(messages) {
     const messageArea = document.getElementById("messageArea");
     if (!messageArea) return;
 
+    const rows = messages || [];
+    const nextKey = rows.map(function(message) {
+        return String(message.id) + ":" + String(message.message || "");
+    }).join("|");
+
+    if (nextKey === renderedMessageKey) return;
+    renderedMessageKey = nextKey;
+
     messageArea.innerHTML = "";
 
-    if (!messages || messages.length === 0) {
+    if (rows.length === 0) {
         messageArea.innerHTML = `
             <div class="muted" style="text-align:center;margin:auto;">
                 💬 No messages yet. Start the conversation!
@@ -4532,7 +4583,7 @@ function renderMessages(messages) {
         return;
     }
 
-    messages.forEach(function(message) {
+    rows.forEach(function(message) {
         const messageElement = document.createElement("div");
         const isMine = String(message.sender || "").toLowerCase() ===
                        String(currentUsername || "").toLowerCase();
@@ -4568,6 +4619,15 @@ async function sendMessage() {
         return;
     }
 
+    const isFriend = friends.some(function(friend) {
+        return normalizeFriendName(friend.username) === normalizeFriendName(currentConversation);
+    });
+
+    if (!isFriend) {
+        alert("You can message people on your friends list.");
+        return;
+    }
+
     const sendButton = document.getElementById("sendMessageButton");
     if (sendButton) sendButton.disabled = true;
 
@@ -4576,12 +4636,10 @@ async function sendMessage() {
             DATABASE_API_URL + "/rest/v1/messages",
             {
                 method: "POST",
-                headers: {
-                    "apikey": PUBLISHABLE_API_KEY,
-                    "Authorization": "Bearer " + PUBLISHABLE_API_KEY,
+                headers: friendsAuthHeaders({
                     "Content-Type": "application/json",
                     "Prefer": "return=representation"
-                },
+                }),
                 body: JSON.stringify({
                     sender: String(currentUsername).trim(),
                     recipient: String(currentConversation).trim(),
@@ -4594,15 +4652,18 @@ async function sendMessage() {
         if (!response.ok) {
             const errorText = await response.text();
             console.error("Message insert error:", errorText);
-            alert(
-                "Couldn't send the message.\n\nDatabase says:\n" +
-                errorText +
-                "\n\nIf this mentions RLS or row-level security, your messages table needs an INSERT policy."
-            );
+            alert(messageFailureText(errorText, "send the message") + "\n\nDatabase says:\n" + errorText);
+            return;
+        }
+
+        const saved = await response.json();
+        if (!Array.isArray(saved) || !saved.length) {
+            alert("The message did not save.");
             return;
         }
 
         input.value = "";
+        renderedMessageKey = null;
         await loadMessagesFromDatabase();
         input.focus();
 
