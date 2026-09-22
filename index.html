@@ -1754,7 +1754,7 @@ body.light-mode .marketplace-item-icon {
                         class="input"
                         type="text"
                         placeholder="🔍 Search friends or users..."
-                        oninput="renderFriends()"
+                        oninput="onFriendSearchInput()"
                     >
 
                     <button
@@ -3160,111 +3160,187 @@ document.addEventListener("click", function(event) {
 
 let friends = [];
 let friendRequests = [];
+let sentFriendRequests = [];
+let friendRelationships = [];
+let friendsLoadError = "";
+let friendSearchTimer = null;
+let friendsLoadVersion = 0;
+
+
+function friendsDatabaseReady() {
+    return !DATABASE_API_URL.includes("PASTE YOUR") &&
+           !PUBLISHABLE_API_KEY.includes("PASTE YOUR");
+}
+
+
+function friendsAuthHeaders(extra) {
+    const headers = {
+        "apikey": PUBLISHABLE_API_KEY,
+        "Authorization": "Bearer " + PUBLISHABLE_API_KEY
+    };
+
+    if (extra) {
+        Object.keys(extra).forEach(function(key) {
+            headers[key] = extra[key];
+        });
+    }
+
+    return headers;
+}
+
+
+function normalizeFriendName(value) {
+    return String(value || "")
+        .trim()
+        .replace(/^@+/, "")
+        .toLowerCase();
+}
+
+
+/* Percent-encode a filter value. Quoted values do not match on this database. */
+function friendFilterValue(value) {
+    return encodeURIComponent(String(value).trim());
+}
+
+
+function friendDbErrorMessage(action, errorText) {
+    let message = "Could not " + action + ".";
+
+    if (errorText) {
+        message += "\n\nDatabase says:\n" + errorText;
+    }
+
+    if (/permission denied|42501/i.test(errorText || "")) {
+        message += "\n\nThe friends table is not granting the site access to " + action + ".";
+    } else if (/row-level security/i.test(errorText || "")) {
+        message += "\n\nA row-level security policy on the friends table blocked this change.";
+    }
+
+    return message;
+}
+
+
+function findRelationshipWith(username) {
+    const target = normalizeFriendName(username);
+
+    return friendRelationships.find(function(row) {
+        return normalizeFriendName(row.sender) === target ||
+               normalizeFriendName(row.recipient) === target;
+    }) || null;
+}
 
 
 /* =====================================================
-   LOAD FRIENDS
+   LOAD FRIENDS AND REQUESTS
+   One read of the existing friends table, then split
+   accepted, incoming, and outgoing rows in the browser.
    ===================================================== */
 
-async function loadFriendsFromDatabase() {
+async function loadFriendRelationships() {
 
-    if (!currentUsername) return;
+    friendsLoadError = "";
 
-    if (DATABASE_API_URL.includes("PASTE YOUR") || PUBLISHABLE_API_KEY.includes("PASTE YOUR")) {
+    if (!currentUsername) {
+        friends = [];
+        friendRequests = [];
+        sentFriendRequests = [];
+        friendRelationships = [];
+        return;
+    }
+
+    if (!friendsDatabaseReady()) {
         console.warn("Veltoria database placeholders have not been replaced yet.");
         return;
     }
+
+    const me = friendFilterValue(currentUsername);
+    const filter = "(sender.eq." + me + ",recipient.eq." + me + ")";
 
     try {
 
         const response = await fetch(
             DATABASE_API_URL +
             "/rest/v1/friends?or=" +
-            "(and(sender.eq." + encodeURIComponent(currentUsername) +
-            ",status.eq.accepted),and(recipient.eq." + encodeURIComponent(currentUsername) +
-            ",status.eq.accepted))&select=*",
+            filter +
+            "&select=*",
             {
                 method: "GET",
-                headers: {
-                    "apikey": PUBLISHABLE_API_KEY,
-                    "Authorization": "Bearer " + PUBLISHABLE_API_KEY
-                }
+                headers: friendsAuthHeaders()
             }
         );
 
         if (!response.ok) {
-            console.error("Supabase friends error:", await response.text());
+            const errorText = await response.text();
+            console.error("Supabase friends error:", errorText);
+            friendsLoadError = /permission denied|42501/i.test(errorText)
+                ? "Couldn't load friends. The database denied access to the friends table."
+                : "Couldn't load friends from the database.";
             return;
         }
 
         const rows = await response.json();
+        const meName = normalizeFriendName(currentUsername);
 
-        friends = rows.map(function(row) {
-
-            return {
-                username:
-                    row.sender === currentUsername
-                        ? row.recipient
-                        : row.sender,
-                online: true
-            };
-
+        friendRelationships = rows.filter(function(row) {
+            return row && row.sender && row.recipient;
         });
+
+        friends = friendRelationships
+            .filter(function(row) {
+                return row.status === "accepted";
+            })
+            .map(function(row) {
+                const senderName = normalizeFriendName(row.sender);
+
+                return {
+                    id: row.id,
+                    username: senderName === meName ? row.recipient : row.sender,
+                    online: true
+                };
+            })
+            .sort(function(a, b) {
+                return a.username.localeCompare(b.username);
+            });
+
+        friendRequests = friendRelationships
+            .filter(function(row) {
+                return row.status === "pending" &&
+                       normalizeFriendName(row.recipient) === meName;
+            })
+            .map(function(row) {
+                return {
+                    id: row.id,
+                    username: row.sender
+                };
+            });
+
+        sentFriendRequests = friendRelationships
+            .filter(function(row) {
+                return row.status === "pending" &&
+                       normalizeFriendName(row.sender) === meName;
+            })
+            .map(function(row) {
+                return {
+                    id: row.id,
+                    username: row.recipient
+                };
+            });
 
     } catch (error) {
         console.error("Could not load friends:", error);
+        friendsLoadError = "Couldn't load friends. Check your connection and try again.";
     }
 
 }
 
 
-/* =====================================================
-   LOAD INCOMING FRIEND REQUESTS
-   ===================================================== */
+async function loadFriendsFromDatabase() {
+    await loadFriendRelationships();
+}
+
 
 async function loadFriendRequestsFromDatabase() {
-
-    if (!currentUsername) return;
-
-    if (DATABASE_API_URL.includes("PASTE YOUR") || PUBLISHABLE_API_KEY.includes("PASTE YOUR")) {
-        console.warn("Veltoria database placeholders have not been replaced yet.");
-        return;
-    }
-
-    try {
-
-        const response = await fetch(
-            DATABASE_API_URL +
-            "/rest/v1/friends?recipient=eq." +
-            encodeURIComponent(currentUsername) +
-            "&status=eq.pending&select=*",
-            {
-                method: "GET",
-                headers: {
-                    "apikey": PUBLISHABLE_API_KEY,
-                    "Authorization": "Bearer " + PUBLISHABLE_API_KEY
-                }
-            }
-        );
-
-        if (!response.ok) {
-            console.error("Supabase friend requests error:", await response.text());
-            return;
-        }
-
-        const rows = await response.json();
-
-        friendRequests = rows.map(function(row) {
-            return {
-                id: row.id,
-                username: row.sender
-            };
-        });
-
-    } catch (error) {
-        console.error("Could not load friend requests:", error);
-    }
-
+    await loadFriendRelationships();
 }
 
 
@@ -3272,7 +3348,47 @@ async function loadFriendRequestsFromDatabase() {
    RENDER FRIENDS
    ===================================================== */
 
+function onFriendSearchInput() {
+    renderFriendLists();
+
+    clearTimeout(friendSearchTimer);
+    friendSearchTimer = setTimeout(function() {
+        const searchInput = document.getElementById("friendSearch");
+        const search = searchInput
+            ? searchInput.value.trim().toLowerCase()
+            : "";
+
+        searchAllUsersForFriends(search);
+    }, 250);
+}
+
+
 async function renderFriends() {
+
+    const friendList = document.getElementById("friendList");
+    const requestList = document.getElementById("friendRequests");
+
+    if (!friendList || !requestList) return;
+
+    const version = ++friendsLoadVersion;
+
+    await loadFriendRelationships();
+
+    if (version !== friendsLoadVersion) return;
+
+    renderFriendLists();
+
+    const searchInput = document.getElementById("friendSearch");
+    const search = searchInput
+        ? searchInput.value.trim().toLowerCase()
+        : "";
+
+    /* Search the whole USERS table, not just the current friend list. */
+    await searchAllUsersForFriends(search);
+}
+
+
+function renderFriendLists() {
 
     const friendList = document.getElementById("friendList");
     const requestList = document.getElementById("friendRequests");
@@ -3282,22 +3398,24 @@ async function renderFriends() {
 
     if (!friendList || !requestList) return;
 
-    await loadFriendsFromDatabase();
-    await loadFriendRequestsFromDatabase();
-
     const search = searchInput
-        ? searchInput.value.trim().toLowerCase()
+        ? searchInput.value.trim().toLowerCase().replace(/^@+/, "")
         : "";
 
-    /* Search the whole USERS table, not just the current friend list. */
-    await searchAllUsersForFriends(search);
-
-    friendCount.textContent = friends.length;
-    requestCount.textContent = friendRequests.length;
+    if (friendCount) friendCount.textContent = friends.length;
+    if (requestCount) requestCount.textContent = friendRequests.length;
 
     requestList.innerHTML = "";
 
-    if (friendRequests.length === 0) {
+    if (friendsLoadError && friendRequests.length === 0 && sentFriendRequests.length === 0) {
+
+        requestList.innerHTML = `
+            <div class="empty-friends">
+                ${escapeHtml(friendsLoadError)}
+            </div>
+        `;
+
+    } else if (friendRequests.length === 0 && sentFriendRequests.length === 0) {
 
         requestList.innerHTML = `
             <div class="empty-friends">
@@ -3308,53 +3426,41 @@ async function renderFriends() {
     } else {
 
         friendRequests.forEach(function(request) {
-
-            const card = document.createElement("div");
-            card.className = "request-card";
-
-            card.innerHTML = `
-                <div class="friend-avatar">
-                    ${getInitial(request.username)}
-                </div>
-
-                <div class="friend-info">
-                    <div class="friend-name">
-                        ${escapeHtml(request.username)}
-                    </div>
-                    <div class="muted">
-                        Wants to be your friend
-                    </div>
-                </div>
-
-                <div class="friend-actions">
-                    <button
-                        class="button"
-                        onclick="acceptFriendRequest(${request.id})"
-                    >
-                        ✓ Accept
-                    </button>
-
-                    <button
-                        class="button secondary"
-                        onclick="declineFriendRequest(${request.id})"
-                    >
-                        ✕ Decline
-                    </button>
-                </div>
-            `;
-
-            requestList.appendChild(card);
-
+            requestList.appendChild(buildFriendRequestCard(request, false));
         });
+
+        if (sentFriendRequests.length) {
+
+            const sentLabel = document.createElement("div");
+            sentLabel.className = "muted";
+            sentLabel.style.margin = "12px 0 8px";
+            sentLabel.textContent = "Sent";
+            requestList.appendChild(sentLabel);
+
+            sentFriendRequests.forEach(function(request) {
+                requestList.appendChild(buildFriendRequestCard(request, true));
+            });
+        }
     }
 
     friendList.innerHTML = "";
 
     const filteredFriends = friends.filter(function(friend) {
-        return friend.username.toLowerCase().includes(search);
+        return normalizeFriendName(friend.username).includes(search);
     });
 
-    if (filteredFriends.length === 0) {
+    if (friendsLoadError && friends.length === 0) {
+
+        friendList.innerHTML = `
+            <div
+                class="empty-friends"
+                style="grid-column:1/-1;"
+            >
+                ${escapeHtml(friendsLoadError)}
+            </div>
+        `;
+
+    } else if (filteredFriends.length === 0) {
 
         friendList.innerHTML = `
             <div
@@ -3373,7 +3479,6 @@ async function renderFriends() {
 
         filteredFriends.forEach(function(friend) {
 
-            const actualIndex = friends.indexOf(friend);
             const card = document.createElement("div");
             card.className = "friend-card";
 
@@ -3410,7 +3515,7 @@ async function renderFriends() {
 
                     <button
                         class="button danger"
-                        onclick="removeFriend(${actualIndex})"
+                        onclick="removeFriend('${escapeJs(friend.username)}')"
                     >
                         🗑️ Remove
                     </button>
@@ -3423,6 +3528,57 @@ async function renderFriends() {
     }
 
     updateProfileUI();
+}
+
+
+function buildFriendRequestCard(request, sent) {
+
+    const card = document.createElement("div");
+    card.className = "request-card";
+
+    const requestId = escapeJs(request.id);
+
+    card.innerHTML = `
+        <div class="friend-avatar">
+            ${getInitial(request.username)}
+        </div>
+
+        <div class="friend-info">
+            <div class="friend-name">
+                ${escapeHtml(request.username)}
+            </div>
+            <div class="muted">
+                ${sent ? "Friend request sent" : "Wants to be your friend"}
+            </div>
+        </div>
+
+        <div class="friend-actions">
+            ${
+                sent
+                    ? `<button
+                        class="button secondary"
+                        onclick="cancelFriendRequest('${requestId}')"
+                    >
+                        Cancel
+                    </button>`
+                    : `<button
+                        class="button"
+                        onclick="acceptFriendRequest('${requestId}')"
+                    >
+                        ✓ Accept
+                    </button>
+
+                    <button
+                        class="button secondary"
+                        onclick="declineFriendRequest('${requestId}')"
+                    >
+                        ✕ Decline
+                    </button>`
+            }
+        </div>
+    `;
+
+    return card;
 }
 
 
@@ -3533,7 +3689,7 @@ async function searchAllUsersForFriends(searchTerm) {
         if (filteredUsers.length === 0) {
             resultsContainer.innerHTML = `
                 <div class="empty-friends">
-                    🔎 No Veltoria users matched "${escapeHtml(term)}".
+                    🔎 No ${users.length ? "other " : ""}Veltoria users matched "${escapeHtml(term)}".
                 </div>
             `;
             return;
@@ -3561,20 +3717,54 @@ async function searchAllUsersForFriends(searchTerm) {
             name.className = "friend-name";
             name.textContent = username;
 
+            const relationship = findRelationshipWith(username);
+            const relationshipStatus = relationship ? relationship.status : "";
+            const iSentIt = relationship &&
+                normalizeFriendName(relationship.sender) ===
+                normalizeFriendName(currentUsername);
+
             const status = document.createElement("div");
             status.className = "muted";
-            status.textContent = "Veltoria user";
+
+            if (relationshipStatus === "accepted") {
+                status.textContent = "Already your friend";
+            } else if (relationshipStatus === "pending" && iSentIt) {
+                status.textContent = "Friend request sent";
+            } else if (relationshipStatus === "pending") {
+                status.textContent = "Sent you a friend request";
+            } else {
+                status.textContent = "Veltoria user";
+            }
 
             info.appendChild(name);
             info.appendChild(status);
 
             const button = document.createElement("button");
-            button.className = "button";
             button.type = "button";
-            button.textContent = "➕ Add Friend";
-            button.addEventListener("click", function() {
-                sendFriendRequestToUsername(username);
-            });
+
+            if (relationshipStatus === "accepted") {
+                button.className = "button secondary";
+                button.textContent = "✓ Friends";
+                button.disabled = true;
+            } else if (relationshipStatus === "pending" && iSentIt) {
+                button.className = "button secondary";
+                button.textContent = "Cancel";
+                button.addEventListener("click", function() {
+                    cancelFriendRequest(relationship.id);
+                });
+            } else if (relationshipStatus === "pending") {
+                button.className = "button";
+                button.textContent = "✓ Accept";
+                button.addEventListener("click", function() {
+                    acceptFriendRequest(relationship.id);
+                });
+            } else {
+                button.className = "button";
+                button.textContent = "➕ Add Friend";
+                button.addEventListener("click", function() {
+                    sendFriendRequestToUsername(username);
+                });
+            }
 
             card.appendChild(avatar);
             card.appendChild(info);
@@ -3613,10 +3803,7 @@ async function sendFriendRequestToUsername(usernameToAdd) {
         return;
     }
 
-    if (
-        DATABASE_API_URL.includes("PASTE YOUR") ||
-        PUBLISHABLE_API_KEY.includes("PASTE YOUR")
-    ) {
+    if (!friendsDatabaseReady()) {
         alert("Veltoria's database connection has not been configured yet.");
         return;
     }
@@ -3631,14 +3818,11 @@ async function sendFriendRequestToUsername(usernameToAdd) {
         const userResponse = await fetch(
             DATABASE_API_URL +
             "/rest/v1/users?username=ilike." +
-            encodeURIComponent(enteredUsername) +
+            friendFilterValue(enteredUsername) +
             "&select=username&limit=1",
             {
                 method: "GET",
-                headers: {
-                    "apikey": PUBLISHABLE_API_KEY,
-                    "Authorization": "Bearer " + PUBLISHABLE_API_KEY
-                }
+                headers: friendsAuthHeaders()
             }
         );
 
@@ -3667,21 +3851,20 @@ async function sendFriendRequestToUsername(usernameToAdd) {
         /* -------------------------------------------------
            CHECK FOR AN EXISTING REQUEST / FRIENDSHIP
            ------------------------------------------------- */
-        const current = encodeURIComponent(String(currentUsername).trim());
-        const target = encodeURIComponent(targetUsername);
+        const current = friendFilterValue(currentUsername);
+        const target = friendFilterValue(targetUsername);
+        const pairFilter =
+            "(and(sender.eq." + current + ",recipient.eq." + target + ")," +
+            "and(sender.eq." + target + ",recipient.eq." + current + "))";
 
         const existingResponse = await fetch(
             DATABASE_API_URL +
             "/rest/v1/friends?or=" +
-            "(and(sender.eq." + current + ",recipient.eq." + target + ")," +
-            "and(sender.eq." + target + ",recipient.eq." + current + "))" +
+            pairFilter +
             "&select=id,sender,recipient,status",
             {
                 method: "GET",
-                headers: {
-                    "apikey": PUBLISHABLE_API_KEY,
-                    "Authorization": "Bearer " + PUBLISHABLE_API_KEY
-                }
+                headers: friendsAuthHeaders()
             }
         );
 
@@ -3695,28 +3878,61 @@ async function sendFriendRequestToUsername(usernameToAdd) {
         const existing = await existingResponse.json();
 
         if (existing.length) {
-            const relationship = existing[0];
+            const accepted = existing.find(function(row) {
+                return row.status === "accepted";
+            });
 
-            if (relationship.status === "accepted") {
+            if (accepted) {
                 alert(targetUsername + " is already your friend.");
                 return;
             }
 
-            if (
-                relationship.status === "pending" &&
-                String(relationship.sender).toLowerCase() === normalizedCurrent
-            ) {
+            const pendingOut = existing.find(function(row) {
+                return row.status === "pending" &&
+                    normalizeFriendName(row.sender) === normalizedCurrent;
+            });
+
+            if (pendingOut) {
                 alert("You already sent " + targetUsername + " a friend request.");
                 return;
             }
 
-            if (
-                relationship.status === "pending" &&
-                String(relationship.recipient).toLowerCase() === normalizedCurrent
-            ) {
+            const pendingIn = existing.find(function(row) {
+                return row.status === "pending" &&
+                    normalizeFriendName(row.recipient) === normalizedCurrent;
+            });
+
+            if (pendingIn) {
                 alert(targetUsername + " already sent you a friend request. Check your requests.");
                 return;
             }
+
+            const declined = existing.find(function(row) {
+                return row.status === "declined";
+            });
+
+            if (declined) {
+                const reopened = await updateFriendRow(declined.id, {
+                    sender: String(currentUsername).trim(),
+                    recipient: targetUsername,
+                    status: "pending"
+                }, "send another friend request");
+
+                if (!reopened) return;
+
+                const searchInput = document.getElementById("friendSearch");
+                if (searchInput) searchInput.value = "";
+
+                const resultsContainer = document.getElementById("userSearchResults");
+                if (resultsContainer) resultsContainer.innerHTML = "";
+
+                alert("Friend request sent to " + targetUsername + "! 👥");
+                await renderFriends();
+                return;
+            }
+
+            alert("You can't send " + targetUsername + " a friend request right now.");
+            return;
         }
 
         /* -------------------------------------------------
@@ -3726,12 +3942,10 @@ async function sendFriendRequestToUsername(usernameToAdd) {
             DATABASE_API_URL + "/rest/v1/friends",
             {
                 method: "POST",
-                headers: {
-                    "apikey": PUBLISHABLE_API_KEY,
-                    "Authorization": "Bearer " + PUBLISHABLE_API_KEY,
+                headers: friendsAuthHeaders({
                     "Content-Type": "application/json",
                     "Prefer": "return=representation"
-                },
+                }),
                 body: JSON.stringify({
                     sender: String(currentUsername).trim(),
                     recipient: targetUsername,
@@ -3744,11 +3958,13 @@ async function sendFriendRequestToUsername(usernameToAdd) {
         if (!createResponse.ok) {
             const errorText = await createResponse.text();
             console.error("Friend request insert error:", errorText);
-            alert(
-                "Could not send the friend request.\n\nDatabase says:\n" +
-                errorText +
-                "\n\nIf this mentions RLS or row-level security, the friends table needs an INSERT policy in Supabase."
-            );
+            alert(friendDbErrorMessage("send the friend request", errorText));
+            return;
+        }
+
+        const createdRows = await readFriendRows(createResponse);
+        if (!createdRows.length) {
+            alert("The friend request did not save.");
             return;
         }
 
@@ -3769,40 +3985,116 @@ async function sendFriendRequestToUsername(usernameToAdd) {
 }
 
 
+async function readFriendRows(response) {
+    const text = await response.text();
+
+    if (!text) return [];
+
+    try {
+        const parsed = JSON.parse(text);
+        return Array.isArray(parsed) ? parsed : [];
+    } catch (error) {
+        console.error("Could not read the friends response:", error);
+        return [];
+    }
+}
+
+
+async function patchFriendRows(filter, changes, action) {
+    const response = await fetch(
+        DATABASE_API_URL + "/rest/v1/friends?" + filter,
+        {
+            method: "PATCH",
+            headers: friendsAuthHeaders({
+                "Content-Type": "application/json",
+                "Prefer": "return=representation"
+            }),
+            body: JSON.stringify(changes)
+        }
+    );
+
+    if (!response.ok) {
+        const errorText = await response.text();
+        console.error(action, errorText);
+        alert(friendDbErrorMessage(action, errorText));
+        return false;
+    }
+
+    const rows = await readFriendRows(response);
+
+    if (!rows.length) {
+        alert("Could not " + action + ". That friend record was not updated.");
+        return false;
+    }
+
+    return true;
+}
+
+
+async function updateFriendRow(id, changes, action) {
+    return patchFriendRows(
+        "id=eq." + friendFilterValue(id),
+        changes,
+        action
+    );
+}
+
+
+async function deleteFriendRows(filter, action) {
+    const response = await fetch(
+        DATABASE_API_URL + "/rest/v1/friends?" + filter,
+        {
+            method: "DELETE",
+            headers: friendsAuthHeaders({
+                "Prefer": "return=representation"
+            })
+        }
+    );
+
+    if (!response.ok) {
+        const errorText = await response.text();
+        console.error(action, errorText);
+        alert(friendDbErrorMessage(action, errorText));
+        return false;
+    }
+
+    const rows = await readFriendRows(response);
+
+    if (!rows.length) {
+        alert("Could not " + action + ". That friend record was not removed.");
+        return false;
+    }
+
+    return true;
+}
+
+
+function incomingRequestFilter(id) {
+    return "id=eq." + friendFilterValue(id) +
+        "&recipient=eq." + friendFilterValue(currentUsername) +
+        "&status=eq.pending";
+}
+
+
 /* =====================================================
    ACCEPT FRIEND REQUEST
    ===================================================== */
 
 async function acceptFriendRequest(id) {
 
+    if (!currentUsername || id === undefined || id === null || id === "") return;
+
     try {
 
-        const response = await fetch(
-            DATABASE_API_URL +
-            "/rest/v1/friends?id=eq." +
-            encodeURIComponent(id),
-            {
-                method: "PATCH",
-                headers: {
-                    "apikey": PUBLISHABLE_API_KEY,
-                    "Authorization": "Bearer " + PUBLISHABLE_API_KEY,
-                    "Content-Type": "application/json",
-                    "Prefer": "return=representation"
-                },
-                body: JSON.stringify({
-                    status: "accepted"
-                })
-            }
+        const updated = await patchFriendRows(
+            incomingRequestFilter(id),
+            { status: "accepted" },
+            "accept the friend request"
         );
 
-        if (!response.ok) {
-            console.error("Accept request error:", await response.text());
-            alert("Could not accept the friend request.");
-            return;
-        }
+        if (!updated) return;
 
         alert("Friend request accepted! 🎉");
-
         await renderFriends();
 
     } catch (error) {
@@ -3818,33 +4110,19 @@ async function acceptFriendRequest(id) {
 
 async function declineFriendRequest(id) {
 
+    if (!currentUsername || id === undefined || id === null || id === "") return;
+
     try {
 
-        const response = await fetch(
-            DATABASE_API_URL +
-            "/rest/v1/friends?id=eq." +
-            encodeURIComponent(id),
-            {
-                method: "PATCH",
-                headers: {
-                    "apikey": PUBLISHABLE_API_KEY,
-                    "Authorization": "Bearer " + PUBLISHABLE_API_KEY,
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({
-                    status: "declined"
-                })
-            }
+        const updated = await patchFriendRows(
+            incomingRequestFilter(id),
+            { status: "declined" },
+            "decline the friend request"
         );
 
-        if (!response.ok) {
-            console.error("Decline request error:", await response.text());
-            alert("Could not decline the friend request.");
-            return;
-        }
+        if (!updated) return;
 
         await renderFriends();
-
         alert("Friend request declined.");
 
     } catch (error) {
@@ -3855,12 +4133,42 @@ async function declineFriendRequest(id) {
 
 
 /* =====================================================
+   CANCEL A REQUEST YOU SENT
+   ===================================================== */
+
+async function cancelFriendRequest(id) {
+
+    if (!currentUsername || id === undefined || id === null || id === "") return;
+
+    try {
+
+        const filter =
+            "id=eq." + friendFilterValue(id) +
+            "&sender=eq." + friendFilterValue(currentUsername) +
+            "&status=eq.pending";
+
+        const removed = await deleteFriendRows(filter, "cancel the friend request");
+
+        if (!removed) return;
+
+        await renderFriends();
+
+    } catch (error) {
+        console.error("Cancel request error:", error);
+        alert("Something went wrong canceling the request.");
+    }
+}
+
+
+/* =====================================================
    REMOVE FRIEND
    ===================================================== */
 
-async function removeFriend(index) {
+async function removeFriend(username) {
 
-    const friend = friends[index];
+    const friend = friends.find(function(item) {
+        return normalizeFriendName(item.username) === normalizeFriendName(username);
+    });
 
     if (!friend) return;
 
@@ -3872,31 +4180,18 @@ async function removeFriend(index) {
 
     try {
 
-        const response = await fetch(
-            DATABASE_API_URL +
-            "/rest/v1/friends?or=" +
-            "(and(sender.eq." + encodeURIComponent(currentUsername) +
-            ",recipient.eq." + encodeURIComponent(friend.username) +
-            ",status.eq.accepted),and(sender.eq." + encodeURIComponent(friend.username) +
-            ",recipient.eq." + encodeURIComponent(currentUsername) +
-            ",status.eq.accepted))",
-            {
-                method: "DELETE",
-                headers: {
-                    "apikey": PUBLISHABLE_API_KEY,
-                    "Authorization": "Bearer " + PUBLISHABLE_API_KEY
-                }
-            }
-        );
+        const me = friendFilterValue(currentUsername);
+        const them = friendFilterValue(friend.username);
+        const filter = friend.id === undefined || friend.id === null
+            ? "or=(and(sender.eq." + me + ",recipient.eq." + them + ",status.eq.accepted)," +
+                "and(sender.eq." + them + ",recipient.eq." + me + ",status.eq.accepted))"
+            : "id=eq." + friendFilterValue(friend.id) + "&status=eq.accepted";
 
-        if (!response.ok) {
-            console.error("Remove friend error:", await response.text());
-            alert("Could not remove this friend.");
-            return;
-        }
+        const removed = await deleteFriendRows(filter, "remove this friend");
+
+        if (!removed) return;
 
         await renderFriends();
-
         alert(friend.username + " was removed from your friends.");
 
     } catch (error) {
