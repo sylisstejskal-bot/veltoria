@@ -3315,6 +3315,20 @@ function authErrorText(data, fallback) {
 }
 
 
+function authEmailConfirmation(user) {
+    if (!user) return "unknown";
+
+    if (user.email_confirmed_at || user.confirmed_at) return "confirmed";
+
+    const metadata = user.user_metadata || {};
+    if (metadata.email_verified === true) return "confirmed";
+    if (metadata.email_verified === false) return "unconfirmed";
+    if (user.email_confirmed_at === null || user.confirmed_at === null) return "unconfirmed";
+
+    return "unknown";
+}
+
+
 function isUnconfirmedAuthError(data, message) {
     const parts = [message];
     if (data) {
@@ -3466,13 +3480,18 @@ function readAuthSignup(data) {
     const source = data || {};
     const session = source.session || null;
     const accessToken = (session && session.access_token) || source.access_token || "";
-    const user = source.user || (source.id && source.email ? source : null);
+    const user = source.user || (source.email ? source : null);
+
+    const identities = user && user.identities;
 
     return {
         accessToken: accessToken,
         userId: user && user.id ? String(user.id) : "",
         email: user && user.email ? String(user.email).trim().toLowerCase() : "",
-        session: session || (source.access_token ? source : null)
+        session: session || (source.access_token ? source : null),
+        user: user,
+        confirmed: authEmailConfirmation(user) === "confirmed",
+        existing: Array.isArray(identities) && identities.length === 0
     };
 }
 
@@ -3519,6 +3538,10 @@ async function ensurePublicUser(username, email, accessToken, authUserId) {
     const normalizedEmail = String(email || "").trim().toLowerCase();
     const existing = await findUserByLogin(username);
     if (existing) {
+        const sameEmail = !normalizedEmail ||
+            !existing.email ||
+            existing.email.toLowerCase() === normalizedEmail;
+        if (!sameEmail) return null;
         await linkAuthId(existing.username, authUserId, accessToken);
         return existing;
     }
@@ -3843,6 +3866,17 @@ function clearAuthParamsFromUrl() {
 }
 
 
+async function fetchAuthUser(accessToken) {
+    if (!accessToken) return null;
+
+    const response = await fetch(DATABASE_API_URL + "/auth/v1/user", {
+        headers: authHeaders(accessToken)
+    });
+    if (!response.ok) return null;
+    return response.json().catch(function() { return null; });
+}
+
+
 async function verifySignupToken(tokenHash, otpType) {
     const response = await fetch(DATABASE_API_URL + "/auth/v1/verify", {
         method: "POST",
@@ -3884,27 +3918,39 @@ async function finishConfirmedSession(session, welcome) {
         ? String(user.email).trim().toLowerCase()
         : "";
 
+    if (authEmailConfirmation(user) === "unconfirmed") {
+        clearAuthParamsFromUrl();
+        alert("That email exists, but it is not confirmed yet. Open the confirmation link before logging in.");
+        return;
+    }
+
     if (!username || !accessToken || !refreshToken) {
         clearAuthParamsFromUrl();
         alert("Your email is confirmed. Log in with your username or email.");
         return;
     }
 
-    await ensurePublicUser(
+    const savedUser = await ensurePublicUser(
         username,
         email,
         accessToken,
         user.id ? String(user.id) : ""
     );
 
+    if (!savedUser) {
+        clearAuthParamsFromUrl();
+        alert("Your email is confirmed, but that username is already used by another account.");
+        return;
+    }
+
     rememberSession({
         access_token: accessToken,
         refresh_token: refreshToken,
         expires_in: session.expires_in
-    }, username, email);
+    }, savedUser.username, email);
 
     clearAuthParamsFromUrl();
-    currentUsername = username;
+    currentUsername = savedUser.username;
 
     const loginPage = document.getElementById("login");
     if (loginPage) loginPage.classList.remove("active");
@@ -3973,6 +4019,13 @@ async function restoreVeltoriaSession() {
             return;
         }
 
+        const authUser = await fetchAuthUser(session.access_token);
+        if (authUser && authEmailConfirmation(authUser) === "unconfirmed") {
+            clearStoredSession();
+            alert("That email exists, but it is not confirmed yet. Open the confirmation link before logging in.");
+            return;
+        }
+
         const account = await findUserByLogin(session.username);
         if (!account) {
             clearStoredSession();
@@ -4036,6 +4089,16 @@ async function login() {
             throw error;
         }
 
+        if (authEmailConfirmation(authData.user) === "unconfirmed") {
+            const resend = await resendSignupConfirmation(identity.email);
+            if (resend && resend.rateLimited) {
+                alert("That email exists, but it is not confirmed yet. Supabase is temporarily refusing to send another confirmation email. Wait a little while, then log in again.");
+                return;
+            }
+            alert("That email exists, but it is not confirmed yet. Open the confirmation link before using the account.");
+            return;
+        }
+
         const metadata = authData.user && authData.user.user_metadata;
         const metadataName = metadata && metadata.username
             ? String(metadata.username).trim()
@@ -4051,10 +4114,14 @@ async function login() {
             return;
         }
 
-        await ensurePublicUser(username, email, authData.access_token, authUserId);
+        const savedUser = await ensurePublicUser(username, email, authData.access_token, authUserId);
+        if (!savedUser) {
+            alert("Your email is confirmed, but that username is already used by another account.");
+            return;
+        }
 
-        currentUsername = username;
-        rememberSession(authData, username, email);
+        currentUsername = savedUser.username;
+        rememberSession(authData, savedUser.username, email);
 
         document.getElementById("loginPassword").value = "";
 
@@ -4122,9 +4189,16 @@ async function signup() {
     try {
         const existingName = await findUserByLogin(username);
         const existingEmail = await findUserByLogin(email);
+        const sameAccount = existingName && existingEmail &&
+            existingName.username.toLowerCase() === existingEmail.username.toLowerCase();
 
-        if (existingName || existingEmail) {
-            alert("That username or email is already on Veltoria.");
+        if (existingName && !sameAccount) {
+            alert("That username is already in use.");
+            return;
+        }
+
+        if (existingEmail) {
+            alert("That email already exists. Log in if you have confirmed it. If it is not confirmed yet, log in and Veltoria will send the confirmation link.");
             return;
         }
 
@@ -4148,7 +4222,7 @@ async function signup() {
         if (!response.ok) {
             const message = authErrorText(data, "Could not create the account.");
             if (/already registered|already exists/i.test(message)) {
-                alert("That email is already registered. Log in instead.");
+                alert("That email already exists. Log in if you have confirmed it. If it is not confirmed yet, log in and Veltoria will send the confirmation link.");
                 return;
             }
             if (/email signups are disabled/i.test(message)) {
@@ -4165,12 +4239,6 @@ async function signup() {
 
         const created = readAuthSignup(data);
         const accessToken = created.accessToken;
-        const savedUser = await ensurePublicUser(
-            username,
-            created.email || email,
-            accessToken,
-            created.userId
-        );
 
         document.getElementById("signupUsername").value = "";
         document.getElementById("signupEmail").value = "";
@@ -4178,27 +4246,43 @@ async function signup() {
         document.getElementById("signupConfirm").value = "";
         document.getElementById("loginUsername").value = username;
 
-        if (!accessToken) {
-            alert(savedUser
-                ? "Account created. Confirm your email, then log in with that email or your username."
-                : "Account created, but the profile row was not saved. Confirm your email, then log in with that email. " + (lastPublicUserError ? publicUserSaveError(lastPublicUserError) : "The users table has to allow new accounts before a username login can find you."));
+        if (created.existing || !created.confirmed) {
+            alert(created.existing
+                ? "That email already exists. Log in if you have confirmed it. If it is not confirmed yet, log in and Veltoria will send the confirmation link."
+                : "That email is not confirmed yet. Open the confirmation link before logging in. The account is not active until the email is confirmed.");
             showAuthPage("login");
             return;
         }
 
-        currentUsername = username;
-        rememberSession(
-            created.session || data,
+        const savedUser = await ensurePublicUser(
             username,
-            created.email || email
+            created.email || email,
+            accessToken,
+            created.userId
         );
 
         if (!savedUser) {
-            alert("You're signed in, but the users table is not allowing this account to be saved. Other people cannot find you until that is fixed.");
-        } else {
-            alert("Account created! Welcome to Veltoria. 🎉");
+            alert(lastPublicUserError
+                ? publicUserSaveError(lastPublicUserError)
+                : "Your email is confirmed, but that username is already used by another account.");
+            showAuthPage("login");
+            return;
         }
 
+        if (!accessToken) {
+            alert("Your email is confirmed. Log in with that email or your username.");
+            showAuthPage("login");
+            return;
+        }
+
+        currentUsername = savedUser.username;
+        rememberSession(
+            created.session || data,
+            savedUser.username,
+            created.email || email
+        );
+
+        alert("Account created! Welcome to Veltoria. 🎉");
         await enterApp(false);
     } catch (error) {
         console.error("Signup error:", error);
