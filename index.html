@@ -1567,6 +1567,12 @@ body.light-mode .marketplace-item-icon {
                                     @username
                                 </p>
 
+                                <p
+                                    id="profileEmail"
+                                    class="profile-username"
+                                    style="display:none;"
+                                ></p>
+
                                 <div class="profile-status">
                                     🟢 Online
                                 </div>
@@ -1602,8 +1608,11 @@ body.light-mode .marketplace-item-icon {
                             </div>
 
                             <div class="profile-stat">
-                                <div class="profile-stat-number">
-                                    2
+                                <div
+                                    class="profile-stat-number"
+                                    id="profileGamesCreated"
+                                >
+                                    —
                                 </div>
 
                                 <div class="profile-stat-label">
@@ -1612,8 +1621,11 @@ body.light-mode .marketplace-item-icon {
                             </div>
 
                             <div class="profile-stat">
-                                <div class="profile-stat-number">
-                                    8
+                                <div
+                                    class="profile-stat-number"
+                                    id="profileFavorites"
+                                >
+                                    —
                                 </div>
 
                                 <div class="profile-stat-label">
@@ -1622,8 +1634,11 @@ body.light-mode .marketplace-item-icon {
                             </div>
 
                             <div class="profile-stat">
-                                <div class="profile-stat-number">
-                                    12
+                                <div
+                                    class="profile-stat-number"
+                                    id="profileVisits"
+                                >
+                                    —
                                 </div>
 
                                 <div class="profile-stat-label">
@@ -1689,6 +1704,15 @@ body.light-mode .marketplace-item-icon {
                     <p class="muted">
                         Update the information shown on your profile.
                     </p>
+
+                    <label>Username</label>
+
+                    <input
+                        id="editUsername"
+                        class="input"
+                        type="text"
+                        disabled
+                    >
 
                     <label>Display Name</label>
 
@@ -2278,6 +2302,13 @@ body.light-mode .marketplace-item-icon {
                         🔄 Reset Settings
                     </button>
 
+                    <button
+                        class="button secondary"
+                        onclick="logout()"
+                    >
+                        ⎋ Log Out
+                    </button>
+
                 </div>
 
             </section>
@@ -2371,26 +2402,19 @@ body.light-mode .marketplace-item-icon {
    VELTORIA DATABASE CONNECTION
    ===================================================== */
 
-let currentUsername = "Sylis Guy";
+let currentUsername = "";
 
 let profileData = {
-    displayName: "Sylis Guy",
+    displayName: "",
     about: "Welcome to my Veltoria profile!",
-    gamesCreated: 2,
-    favorites: 8,
-    visits: 12
+    email: "",
+    gamesCreated: "—",
+    favorites: "—",
+    visits: "—"
 };
 
-/* Restore the real logged-in username for this browser session. */
-try {
-    const savedUsername = sessionStorage.getItem("veltoriaCurrentUsername");
-    if (savedUsername) {
-        currentUsername = savedUsername;
-        profileData.displayName = savedUsername;
-    }
-} catch (error) {
-    console.warn("Could not restore the Veltoria session:", error);
-}
+let profileViewUsername = "";
+let skipProfileRefresh = false;
 
 
 /* =====================================================
@@ -2604,61 +2628,319 @@ function showAuthPage(pageId) {
 }
 
 
-/* =====================================================
-   RESOLVE THE REAL USERNAME FROM THE USERS TABLE
-   This lets login work with either username OR email.
-   ===================================================== */
+const VELTORIA_SESSION_KEY = "veltoriaSession";
 
-async function resolveCurrentUsername(loginValue) {
 
+function authHeaders(accessToken, extra) {
+    const headers = {
+        "apikey": PUBLISHABLE_API_KEY,
+        "Authorization": "Bearer " + (accessToken || PUBLISHABLE_API_KEY),
+        "Content-Type": "application/json"
+    };
+
+    if (extra) {
+        Object.keys(extra).forEach(function(key) {
+            headers[key] = extra[key];
+        });
+    }
+
+    return headers;
+}
+
+
+function authErrorText(data, fallback) {
+    if (!data) return fallback;
+    return data.msg ||
+        data.error_description ||
+        data.message ||
+        data.error ||
+        fallback;
+}
+
+
+function isValidVeltoriaUsername(username) {
+    return /^[A-Za-z0-9_]{3,20}$/.test(username);
+}
+
+
+async function loadProfileForCurrentUser() {
+    profileData.displayName = currentUsername || "";
+    profileData.about = "Welcome to my Veltoria profile!";
+    profileData.email = "";
+    profileData.gamesCreated = "—";
+    profileData.favorites = "—";
+    profileData.visits = "—";
+
+    if (!currentUsername) return;
+
+    try {
+        const record = await loadUserRecord(currentUsername);
+        if (!record) return;
+        applyRecordToProfileData(record);
+    } catch (error) {
+        console.error("Could not load the profile:", error);
+    }
+}
+
+
+function readStoredSession() {
+    try {
+        const saved = localStorage.getItem(VELTORIA_SESSION_KEY);
+        if (!saved) return null;
+        const session = JSON.parse(saved);
+        if (!session || !session.username || !session.refresh_token) return null;
+        return session;
+    } catch (error) {
+        console.warn("Could not read the Veltoria session:", error);
+        return null;
+    }
+}
+
+
+function writeStoredSession(session) {
+    localStorage.setItem(VELTORIA_SESSION_KEY, JSON.stringify(session));
+}
+
+
+function clearStoredSession() {
+    localStorage.removeItem(VELTORIA_SESSION_KEY);
+    try {
+        sessionStorage.removeItem("veltoriaCurrentUsername");
+    } catch (error) {
+        console.warn("Could not clear the old session key:", error);
+    }
+}
+
+
+function setOwnerBadge() {
+    const badge = document.getElementById("ownerBadge");
+    if (!badge) return;
+
+    badge.style.display =
+        normalizeFriendName(currentUsername) === "sylisveltaowner"
+            ? "inline-block"
+            : "none";
+}
+
+
+function stopLiveUpdates() {
+    if (typeof friendRefreshTimer !== "undefined" && friendRefreshTimer) {
+        clearInterval(friendRefreshTimer);
+        friendRefreshTimer = null;
+    }
+
+    if (typeof messageRefreshTimer !== "undefined" && messageRefreshTimer) {
+        clearInterval(messageRefreshTimer);
+        messageRefreshTimer = null;
+    }
+}
+
+
+async function findUserByLogin(loginValue) {
     const value = String(loginValue || "").trim();
     if (!value) return null;
 
-    if (
-        DATABASE_API_URL.includes("PASTE YOUR") ||
-        PUBLISHABLE_API_KEY.includes("PASTE YOUR")
-    ) {
-        return value;
+    const column = value.includes("@") ? "email" : "username";
+    const response = await fetch(
+        DATABASE_API_URL +
+        "/rest/v1/users?" + column + "=ilike." +
+        friendFilterValue(value) +
+        "&select=username,email&limit=1",
+        {
+            method: "GET",
+            headers: friendsAuthHeaders()
+        }
+    );
+
+    if (!response.ok) {
+        const errorText = await response.text();
+        console.error("User lookup failed:", errorText);
+        throw new Error("Could not look up that Veltoria account.");
     }
 
+    const rows = await response.json();
+    if (!rows.length || !rows[0].username) return null;
+
+    return {
+        username: String(rows[0].username).trim(),
+        email: String(rows[0].email || "").trim()
+    };
+}
+
+
+async function ensurePublicUser(username, email, accessToken) {
+    const existing = await findUserByLogin(username);
+    if (existing) return existing;
+
     try {
-        const column = value.includes("@") ? "email" : "username";
-        const response = await fetch(
-            DATABASE_API_URL +
-            "/rest/v1/users?" + column + "=ilike." +
-            encodeURIComponent(value) +
-            "&select=username&limit=1",
-            {
-                method: "GET",
-                headers: {
-                    "apikey": PUBLISHABLE_API_KEY,
-                    "Authorization": "Bearer " + PUBLISHABLE_API_KEY
-                }
-            }
-        );
-
-        if (!response.ok) {
-            console.error("Login user lookup failed:", await response.text());
-            return null;
-        }
-
-        const rows = await response.json();
-        if (rows.length && rows[0].username) {
-            return String(rows[0].username).trim();
-        }
+        await insertPublicUser(username, email, accessToken);
     } catch (error) {
-        console.error("Could not resolve the logged-in user:", error);
+        console.error("Could not add the account to the users table:", error);
         return null;
     }
 
-    return null;
+    return findUserByLogin(username);
 }
+
+
+async function insertPublicUser(username, email, accessToken) {
+    const response = await fetch(
+        DATABASE_API_URL + "/rest/v1/users",
+        {
+            method: "POST",
+            headers: authHeaders(accessToken, {
+                "Prefer": "return=representation"
+            }),
+            body: JSON.stringify({
+                username: username,
+                email: email
+            })
+        }
+    );
+
+    if (!response.ok) {
+        const errorText = await response.text();
+        console.error("Could not save the Veltoria user:", errorText);
+        if (/permission denied|42501/i.test(errorText)) {
+            throw new Error("The users table is not allowing new accounts to be saved.");
+        }
+        throw new Error("The account could not be saved in the users table.");
+    }
+
+    const rows = await response.json();
+    return rows && rows[0] ? rows[0] : null;
+}
+
+
+async function signInWithPassword(email, password) {
+    const response = await fetch(
+        DATABASE_API_URL + "/auth/v1/token?grant_type=password",
+        {
+            method: "POST",
+            headers: authHeaders(),
+            body: JSON.stringify({
+                email: email,
+                password: password
+            })
+        }
+    );
+
+    const data = await response.json().catch(function() { return {}; });
+
+    if (!response.ok) {
+        const message = authErrorText(data, "Could not log in.");
+        if (/invalid login credentials/i.test(message)) {
+            throw new Error("That username/email or password is incorrect.");
+        }
+        if (/email not confirmed/i.test(message)) {
+            throw new Error("Confirm your email before logging in.");
+        }
+        throw new Error(message);
+    }
+
+    return data;
+}
+
+
+async function refreshStoredSession(session) {
+    const response = await fetch(
+        DATABASE_API_URL + "/auth/v1/token?grant_type=refresh_token",
+        {
+            method: "POST",
+            headers: authHeaders(),
+            body: JSON.stringify({
+                refresh_token: session.refresh_token
+            })
+        }
+    );
+
+    if (!response.ok) return null;
+
+    const data = await response.json().catch(function() { return null; });
+    if (!data || !data.access_token || !data.refresh_token) return null;
+
+    const nextSession = {
+        access_token: data.access_token,
+        refresh_token: data.refresh_token,
+        expires_at: Date.now() + (Number(data.expires_in) || 3600) * 1000,
+        username: session.username,
+        email: session.email || ""
+    };
+
+    writeStoredSession(nextSession);
+    return nextSession;
+}
+
+
+function rememberSession(authData, username, email) {
+    writeStoredSession({
+        access_token: authData.access_token,
+        refresh_token: authData.refresh_token,
+        expires_at: Date.now() + (Number(authData.expires_in) || 3600) * 1000,
+        username: username,
+        email: email || ""
+    });
+}
+
+
+async function enterApp(showWelcome) {
+    await loadProfileForCurrentUser();
+    setOwnerBadge();
+    updateProfileUI();
+    updateSettingsUI();
+
+    document.querySelectorAll("body > section").forEach(function(page) {
+        page.classList.remove("active");
+    });
+
+    document.getElementById("veltoriaApp").style.display = "block";
+
+    await renderFriends();
+    applySettings();
+    initializeMessages();
+    startFriendRequestAutoRefresh();
+
+    if (showWelcome) {
+        alert("Welcome to Veltoria, " + currentUsername + "! 🎉");
+    }
+}
+
+
+async function restoreVeltoriaSession() {
+    let session = readStoredSession();
+    if (!session) return;
+
+    try {
+        if (!session.expires_at || session.expires_at < Date.now() + 60000) {
+            session = await refreshStoredSession(session);
+        }
+
+        if (!session) {
+            clearStoredSession();
+            return;
+        }
+
+        const account = await findUserByLogin(session.username);
+        if (!account) {
+            clearStoredSession();
+            return;
+        }
+
+        currentUsername = account.username;
+        document.getElementById("login").classList.remove("active");
+        await enterApp(false);
+    } catch (error) {
+        console.error("Could not restore the Veltoria session:", error);
+        clearStoredSession();
+    }
+}
+
 
 /* LOGIN */
 
 async function login() {
 
-    const username =
+    const loginValue =
         document
             .getElementById("loginUsername")
             .value
@@ -2669,76 +2951,57 @@ async function login() {
             .getElementById("loginPassword")
             .value;
 
-    if (!username || !password) {
-
-        alert(
-            "Please enter your username/email and password."
-        );
-
+    if (!loginValue || !password) {
+        alert("Please enter your username/email and password.");
         return;
     }
 
-    const resolvedUsername = await resolveCurrentUsername(username);
+    try {
+        let account = await findUserByLogin(loginValue);
+        let authData = null;
 
-    if (!resolvedUsername) {
-        alert("That Veltoria account could not be found in the users table.");
-        return;
+        if (account && account.email) {
+            authData = await signInWithPassword(account.email, password);
+        } else if (loginValue.includes("@")) {
+            authData = await signInWithPassword(loginValue, password);
+            const metadata = authData.user && authData.user.user_metadata;
+            const metadataName = metadata && metadata.username
+                ? String(metadata.username).trim()
+                : "";
+
+            if (!metadataName) {
+                alert("That Veltoria account could not be found.");
+                return;
+            }
+
+            account = {
+                username: metadataName,
+                email: loginValue
+            };
+        } else {
+            alert("That Veltoria account could not be found.");
+            return;
+        }
+
+        await ensurePublicUser(account.username, account.email, authData.access_token);
+
+        currentUsername = account.username;
+        rememberSession(authData, account.username, account.email);
+
+        document.getElementById("loginPassword").value = "";
+
+        await enterApp(true);
+    } catch (error) {
+        console.error("Login error:", error);
+        alert(error.message || "Could not log in.");
     }
-
-    currentUsername = resolvedUsername;
-
-    // Keep the real logged-in username for Friends, Messages, Profile, and Settings.
-    sessionStorage.setItem("veltoriaCurrentUsername", currentUsername);
-
-    profileData.displayName = currentUsername;
-
-    updateProfileUI();
-
-    updateSettingsUI();
-
-    if (
-        currentUsername.toLowerCase() ===
-        "sylisveltaowner"
-    ) {
-
-        document
-            .getElementById("ownerBadge")
-            .style.display = "inline-block";
-
-    } else {
-
-        document
-            .getElementById("ownerBadge")
-            .style.display = "none";
-
-    }
-
-    document
-        .getElementById("login")
-        .classList.remove("active");
-
-    document
-        .getElementById("veltoriaApp")
-        .style.display = "block";
-
-    await renderFriends();
-
-    applySettings();
-
-    initializeMessages();
-
-    startFriendRequestAutoRefresh();
-
-    alert(
-        "Welcome to Veltoria, " + currentUsername + "! 🎉"
-    );
 
 }
 
 
 /* SIGN UP */
 
-function signup() {
+async function signup() {
 
     const username =
         document
@@ -2762,33 +3025,145 @@ function signup() {
             .getElementById("signupConfirm")
             .value;
 
-    if (
-        !username ||
-        !email ||
-        !password ||
-        !confirmPassword
-    ) {
+    if (!username || !email || !password || !confirmPassword) {
+        alert("Please fill out every field.");
+        return;
+    }
 
-        alert(
-            "Please fill out every field."
-        );
+    if (!isValidVeltoriaUsername(username)) {
+        alert("Usernames need 3 to 20 letters, numbers, or underscores.");
+        return;
+    }
 
+    if (!email.includes("@") || !email.includes(".")) {
+        alert("Enter a valid email address.");
+        return;
+    }
+
+    if (password.length < 6) {
+        alert("Passwords need at least 6 characters.");
         return;
     }
 
     if (password !== confirmPassword) {
-
-        alert(
-            "The passwords do not match."
-        );
-
+        alert("The passwords do not match.");
         return;
     }
 
-    alert(
-        "Account created! You can now log in. 🎉"
-    );
+    try {
+        const existingName = await findUserByLogin(username);
+        const existingEmail = await findUserByLogin(email);
 
+        if (existingName || existingEmail) {
+            alert("That username or email is already on Veltoria.");
+            return;
+        }
+
+        const response = await fetch(
+            DATABASE_API_URL + "/auth/v1/signup",
+            {
+                method: "POST",
+                headers: authHeaders(),
+                body: JSON.stringify({
+                    email: email,
+                    password: password,
+                    data: {
+                        username: username
+                    }
+                })
+            }
+        );
+
+        const data = await response.json().catch(function() { return {}; });
+
+        if (!response.ok) {
+            const message = authErrorText(data, "Could not create the account.");
+            if (/already registered|already exists/i.test(message)) {
+                alert("That email is already registered. Log in instead.");
+                return;
+            }
+            alert(message);
+            return;
+        }
+
+        const accessToken = data.session && data.session.access_token
+            ? data.session.access_token
+            : data.access_token;
+
+        const savedUser = await ensurePublicUser(username, email, accessToken);
+
+        document.getElementById("signupUsername").value = "";
+        document.getElementById("signupEmail").value = "";
+        document.getElementById("signupPassword").value = "";
+        document.getElementById("signupConfirm").value = "";
+        document.getElementById("loginUsername").value = username;
+
+        if (!accessToken) {
+            alert(savedUser
+                ? "Account created. Confirm your email, then log in."
+                : "Account created. Confirm your email, then log in. The users table also has to allow new accounts before friends can find you.");
+            showAuthPage("login");
+            return;
+        }
+
+        currentUsername = username;
+        rememberSession(
+            data.session || data,
+            username,
+            email
+        );
+
+        if (!savedUser) {
+            alert("You're signed in, but the users table is not allowing this account to be saved. Other people cannot find you until that is fixed.");
+        } else {
+            alert("Account created! Welcome to Veltoria. 🎉");
+        }
+
+        await enterApp(false);
+    } catch (error) {
+        console.error("Signup error:", error);
+        alert(error.message || "Could not create the account.");
+    }
+
+}
+
+
+async function logout() {
+
+    const confirmed = confirm("Log out of Veltoria?");
+    if (!confirmed) return;
+
+    const session = readStoredSession();
+
+    try {
+        if (session && session.access_token) {
+            await fetch(DATABASE_API_URL + "/auth/v1/logout", {
+                method: "POST",
+                headers: authHeaders(session.access_token)
+            });
+        }
+    } catch (error) {
+        console.warn("Could not reach Supabase logout:", error);
+    }
+
+    stopLiveUpdates();
+    clearStoredSession();
+
+    currentUsername = "";
+    currentConversation = null;
+    friends = [];
+    friendRequests = [];
+    sentFriendRequests = [];
+    friendRelationships = [];
+    renderedMessageKey = null;
+
+    profileData.displayName = "";
+    profileData.about = "Welcome to my Veltoria profile!";
+
+    const loginPassword = document.getElementById("loginPassword");
+    if (loginPassword) loginPassword.value = "";
+
+    document.getElementById("veltoriaApp").style.display = "none";
     showAuthPage("login");
 
 }
@@ -2798,80 +3173,178 @@ function signup() {
    SYSTEM #4 — PROFILE
    ===================================================== */
 
+function profileField(record, names, fallback) {
+    if (!record) return fallback;
+
+    for (let index = 0; index < names.length; index++) {
+        const value = record[names[index]];
+        if (value !== undefined && value !== null && String(value).trim() !== "") {
+            return String(value).trim();
+        }
+    }
+
+    return fallback;
+}
+
+
+function applyRecordToProfileData(record) {
+    profileData.displayName = profileField(
+        record,
+        ["display_name", "displayName"],
+        record.username || currentUsername
+    );
+    profileData.about = profileField(
+        record,
+        ["about", "bio"],
+        "Welcome to my Veltoria profile!"
+    );
+    profileData.email = String(record.email || "");
+    profileData.gamesCreated = profileField(record, ["games_created", "gamesCreated"], "—");
+    profileData.favorites = profileField(record, ["favorites"], "—");
+    profileData.visits = profileField(record, ["visits"], "—");
+}
+
+
+async function loadUserRecord(username) {
+    const name = String(username || "").trim();
+    if (!name) return null;
+
+    const response = await fetch(
+        DATABASE_API_URL +
+        "/rest/v1/users?username=eq." +
+        friendFilterValue(name) +
+        "&select=*&limit=1",
+        {
+            method: "GET",
+            headers: friendsAuthHeaders()
+        }
+    );
+
+    if (!response.ok) {
+        const errorText = await response.text();
+        console.error("Profile lookup failed:", errorText);
+        throw new Error("Could not load that Veltoria profile.");
+    }
+
+    const rows = await response.json();
+    if (!rows.length) return null;
+    return rows[0];
+}
+
+
+async function countAcceptedFriends(username) {
+    const name = friendFilterValue(username);
+    const filter = "(sender.eq." + name + ",recipient.eq." + name + ")";
+    const response = await fetch(
+        DATABASE_API_URL +
+        "/rest/v1/friends?or=" + filter +
+        "&status=eq.accepted&select=id",
+        {
+            method: "GET",
+            headers: friendsAuthHeaders()
+        }
+    );
+
+    if (!response.ok) return null;
+    const rows = await response.json();
+    return Array.isArray(rows) ? rows.length : null;
+}
+
+
+function paintProfile(details) {
+    const displayName = document.getElementById("profileDisplayName");
+    const username = document.getElementById("profileUsername");
+    const email = document.getElementById("profileEmail");
+    const about = document.getElementById("profileAbout");
+    const avatar = document.getElementById("profileAvatar");
+    const topbarAvatar = document.getElementById("topbarAvatar");
+    const friendCount = document.getElementById("profileFriendCount");
+    const gamesCreated = document.getElementById("profileGamesCreated");
+    const favorites = document.getElementById("profileFavorites");
+    const visits = document.getElementById("profileVisits");
+
+    if (displayName) displayName.textContent = details.displayName || details.username || "";
+    if (username) username.textContent = "@" + String(details.username || "").toLowerCase();
+    if (about) about.textContent = details.about || "Welcome to my Veltoria profile!";
+    if (avatar) avatar.textContent = getInitial(details.displayName || details.username);
+    if (friendCount && details.friendCount !== undefined && details.friendCount !== null) {
+        friendCount.textContent = details.friendCount;
+    }
+    if (gamesCreated) gamesCreated.textContent = details.gamesCreated || "—";
+    if (favorites) favorites.textContent = details.favorites || "—";
+    if (visits) visits.textContent = details.visits || "—";
+
+    if (email) {
+        if (details.email) {
+            email.style.display = "block";
+            email.textContent = details.email;
+        } else {
+            email.style.display = "none";
+            email.textContent = "";
+        }
+    }
+
+    if (topbarAvatar && details.ownProfile) {
+        topbarAvatar.textContent = getInitial(details.displayName || details.username);
+    }
+}
+
+
 function updateProfileUI() {
-
-    const displayName =
-        document.getElementById("profileDisplayName");
-
-    const username =
-        document.getElementById("profileUsername");
-
-    const about =
-        document.getElementById("profileAbout");
-
-    const avatar =
-        document.getElementById("profileAvatar");
-
-    const topbarAvatar =
-        document.getElementById("topbarAvatar");
-
-    const friendCount =
-        document.getElementById("profileFriendCount");
-
-    if (displayName) {
-
-        displayName.textContent =
-            profileData.displayName;
-
-    }
-
-    if (username) {
-
-        username.textContent =
-            "@" +
-            currentUsername
-                .replace(/\s+/g, "")
-                .toLowerCase();
-
-    }
-
-    if (about) {
-
-        about.textContent =
-            profileData.about;
-
-    }
-
-    if (avatar) {
-
-        avatar.textContent =
-            getInitial(profileData.displayName);
-
-    }
-
-    if (topbarAvatar) {
-
-        topbarAvatar.textContent =
-            getInitial(profileData.displayName);
-
-    }
-
-    if (friendCount) {
-
-        friendCount.textContent =
-            friends.length;
-
-    }
-
     updateSettingsUI();
 
+    if (!isViewingOwnProfile()) return;
+
+    paintProfile({
+        displayName: profileData.displayName || currentUsername,
+        username: currentUsername,
+        email: profileData.email,
+        about: profileData.about,
+        friendCount: friends.length,
+        gamesCreated: profileData.gamesCreated,
+        favorites: profileData.favorites,
+        visits: profileData.visits,
+        ownProfile: true
+    });
+
+    setOwnerBadge();
+}
+
+
+function isViewingOwnProfile() {
+    return !profileViewUsername ||
+        normalizeFriendName(profileViewUsername) === normalizeFriendName(currentUsername);
+}
+
+
+async function openOwnProfile() {
+    if (skipProfileRefresh) {
+        skipProfileRefresh = false;
+        return;
+    }
+
+    profileViewUsername = "";
+    await refreshMyProfile();
+}
+
+
+async function refreshMyProfile() {
+    profileViewUsername = "";
+    restoreOwnProfileActions();
+    await loadProfileForCurrentUser();
+    updateProfileUI();
 }
 
 
 function openEditProfile() {
 
+    if (!isViewingOwnProfile()) return;
+
     const card =
         document.getElementById("editProfileCard");
+
+    const usernameField = document.getElementById("editUsername");
+    if (usernameField) usernameField.value = currentUsername;
 
     document
         .getElementById("editDisplayName")
@@ -2897,7 +3370,9 @@ function closeEditProfile() {
 }
 
 
-function saveProfile() {
+async function saveProfile() {
+
+    if (!isViewingOwnProfile()) return;
 
     const displayName =
         document
@@ -2909,31 +3384,80 @@ function saveProfile() {
         document
             .getElementById("editAbout")
             .value
-            .trim();
+            .trim() ||
+        "Welcome to my Veltoria profile!";
 
     if (!displayName) {
-
-        alert(
-            "Please enter a display name."
-        );
-
+        alert("Please enter a display name.");
         return;
     }
 
-    profileData.displayName =
-        displayName;
+    if (!currentUsername) {
+        alert("Log in before editing your profile.");
+        return;
+    }
 
-    profileData.about =
-        about ||
-        "Welcome to my Veltoria profile!";
+    try {
+        const record = await loadUserRecord(currentUsername);
+        if (!record || record.id === undefined || record.id === null) {
+            alert("Your profile could not be saved. That account was not found.");
+            return;
+        }
 
-    updateProfileUI();
+        const session = readStoredSession();
+        const response = await fetch(
+            DATABASE_API_URL +
+            "/rest/v1/users?id=eq." +
+            friendFilterValue(record.id),
+            {
+                method: "PATCH",
+                headers: authHeaders(session && session.access_token, {
+                    "Prefer": "return=representation"
+                }),
+                body: JSON.stringify({
+                    display_name: displayName,
+                    about: about
+                })
+            }
+        );
 
-    closeEditProfile();
+        const responseText = await response.text();
+        let rows = [];
+        try {
+            const parsed = JSON.parse(responseText);
+            if (Array.isArray(parsed)) rows = parsed;
+        } catch (error) {
+            rows = [];
+        }
 
-    alert(
-        "Your profile has been updated! ✨"
-    );
+        if (!response.ok) {
+            console.error("Profile save failed:", responseText);
+            if (/display_name|about|42703|column/i.test(responseText)) {
+                alert("Your profile could not be saved. The users table needs display_name and about columns.");
+                return;
+            }
+            if (/permission denied|42501/i.test(responseText)) {
+                alert("Your profile could not be saved. The users table is not allowing profile updates.");
+                return;
+            }
+            alert("Your profile could not be saved.");
+            return;
+        }
+
+        if (!rows.length || rows[0].username !== record.username) {
+            alert("Your profile could not be saved. The users table blocked the update.");
+            return;
+        }
+
+        applyRecordToProfileData(rows[0]);
+        profileViewUsername = "";
+        updateProfileUI();
+        closeEditProfile();
+        alert("Your profile has been updated! ✨");
+    } catch (error) {
+        console.error("Profile save error:", error);
+        alert("Something went wrong saving your profile.");
+    }
 
 }
 
@@ -2978,7 +3502,7 @@ function showPage(pageId, button) {
 
     if (pageId === "profile") {
 
-        updateProfileUI();
+        openOwnProfile();
 
     }
 
@@ -3046,7 +3570,7 @@ function showPageById(pageId) {
 
     if (pageId === "profile") {
 
-        updateProfileUI();
+        openOwnProfile();
 
     }
 
@@ -3708,14 +4232,22 @@ async function searchAllUsersForFriends(searchTerm) {
 
             const avatar = document.createElement("div");
             avatar.className = "friend-avatar";
+            avatar.style.cursor = "pointer";
             avatar.textContent = getInitial(username);
+            avatar.addEventListener("click", function() {
+                viewUserProfile(username);
+            });
 
             const info = document.createElement("div");
             info.className = "friend-info";
 
             const name = document.createElement("div");
             name.className = "friend-name";
+            name.style.cursor = "pointer";
             name.textContent = username;
+            name.addEventListener("click", function() {
+                viewUserProfile(username);
+            });
 
             const relationship = findRelationshipWith(username);
             const relationshipStatus = relationship ? relationship.status : "";
@@ -4207,53 +4739,15 @@ function messageFriend(username) {
 }
 
 
-function viewFriendProfile(username) {
-
-    const friend = friends.find(function(item) {
-        return item.username.toLowerCase() === username.toLowerCase();
-    });
-
-    if (!friend) return;
-
-    showPageById("profile");
-
+function restoreOwnProfileActions() {
+    const actions = document.querySelector(".profile-actions");
     const profileView = document.getElementById("profileView");
     const editCard = document.getElementById("editProfileCard");
 
-    editCard.classList.remove("active");
-    profileView.classList.remove("hidden");
+    if (editCard) editCard.classList.remove("active");
+    if (profileView) profileView.classList.remove("hidden");
 
-    document.getElementById("profileDisplayName").textContent = friend.username;
-    document.getElementById("profileUsername").textContent = "@" + friend.username.toLowerCase();
-    document.getElementById("profileAvatar").textContent = getInitial(friend.username);
-    document.getElementById("profileAbout").textContent = "Veltoria friend profile.";
-    document.getElementById("profileFriendCount").textContent = "—";
-    document.querySelector(".profile-status").textContent = friend.online ? "🟢 Online" : "⚫ Offline";
-    document.getElementById("ownerBadge").style.display = "none";
-
-    const actions = document.querySelector(".profile-actions");
-
-    actions.innerHTML = `
-        <button
-            class="button"
-            onclick="messageFriend('${escapeJs(friend.username)}')"
-        >
-            💬 Message
-        </button>
-
-        <button
-            class="button secondary"
-            onclick="returnToMyProfile()"
-        >
-            ← My Profile
-        </button>
-    `;
-}
-
-
-function returnToMyProfile() {
-
-    const actions = document.querySelector(".profile-actions");
+    if (!actions) return;
 
     actions.innerHTML = `
         <button
@@ -4263,8 +4757,83 @@ function returnToMyProfile() {
             ⚙️ Edit Profile
         </button>
     `;
+}
 
-    updateProfileUI();
+
+async function viewUserProfile(username) {
+    const requestedName = String(username || "").trim();
+    if (!requestedName) return;
+
+    if (normalizeFriendName(requestedName) === normalizeFriendName(currentUsername)) {
+        showPageById("profile");
+        return;
+    }
+
+    try {
+        const record = await loadUserRecord(requestedName);
+        if (!record) {
+            alert("That Veltoria profile could not be found.");
+            return;
+        }
+
+        const friendCount = await countAcceptedFriends(record.username);
+        const isFriend = friends.some(function(friend) {
+            return normalizeFriendName(friend.username) === normalizeFriendName(record.username);
+        });
+
+        profileViewUsername = record.username;
+        skipProfileRefresh = true;
+        showPageById("profile");
+
+        const editCard = document.getElementById("editProfileCard");
+        const profileView = document.getElementById("profileView");
+        if (editCard) editCard.classList.remove("active");
+        if (profileView) profileView.classList.remove("hidden");
+
+        paintProfile({
+            displayName: profileField(record, ["display_name", "displayName"], record.username),
+            username: record.username,
+            email: "",
+            about: profileField(record, ["about", "bio"], "Welcome to my Veltoria profile!"),
+            friendCount: friendCount === null ? "—" : friendCount,
+            gamesCreated: profileField(record, ["games_created", "gamesCreated"], "—"),
+            favorites: profileField(record, ["favorites"], "—"),
+            visits: profileField(record, ["visits"], "—"),
+            ownProfile: false
+        });
+
+        const badge = document.getElementById("ownerBadge");
+        if (badge) {
+            badge.style.display = normalizeFriendName(record.username) === "sylisveltaowner"
+                ? "inline-block"
+                : "none";
+        }
+
+        const actions = document.querySelector(".profile-actions");
+        if (!actions) return;
+
+        const safeName = escapeJs(record.username);
+        actions.innerHTML = `
+            ${isFriend
+                ? `<button class="button" onclick="messageFriend('${safeName}')">💬 Message</button>`
+                : ""}
+            <button class="button secondary" onclick="returnToMyProfile()">← My Profile</button>
+        `;
+    } catch (error) {
+        console.error("Could not open the profile:", error);
+        alert(error.message || "Could not open that profile.");
+    }
+}
+
+
+function viewFriendProfile(username) {
+    viewUserProfile(username);
+}
+
+
+function returnToMyProfile() {
+    profileViewUsername = "";
+    showPageById("profile");
 }
 
 
@@ -4797,6 +5366,7 @@ const PUBLISHABLE_API_KEY = "sb_publishable_20HcXeHutH_vjpF5Er4Odg_ukFwqqzi";
    ===================================================== */
 
 applySettings();
+restoreVeltoriaSession();
 
 </script>
 
