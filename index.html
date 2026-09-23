@@ -419,6 +419,18 @@ h1 {
     margin-bottom: 25px;
 }
 
+.dev-auth-notice {
+    display: none;
+    margin: -10px 0 18px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: #211b31;
+    color: #d5d5df;
+    font-size: 13px;
+    line-height: 1.4;
+    text-align: center;
+}
+
 .auth-card label {
     display: block;
     margin-top: 15px;
@@ -1280,6 +1292,10 @@ body.light-mode .marketplace-item-icon {
                 Welcome back to Veltoria!
             </p>
 
+            <p class="dev-auth-notice">
+                Development only: this computer reuses one test email and signs in through Supabase. It does not send another confirmation email. The live site still requires email confirmation.
+            </p>
+
             <label>Username or Email</label>
 
             <input
@@ -1339,6 +1355,10 @@ body.light-mode .marketplace-item-icon {
 
             <p class="auth-subtitle">
                 Join Veltoria today!
+            </p>
+
+            <p class="dev-auth-notice">
+                Development only: the first new email sends one confirmation message. Using that same email again signs in instead of creating another account. The live site still requires email confirmation.
             </p>
 
             <label>Username</label>
@@ -3735,6 +3755,80 @@ async function resolveLoginIdentity(loginValue) {
 }
 
 
+const VELTORIA_DEV_SIGNUP_KEY = "veltoriaDevSignup";
+
+
+function isVeltoriaDevelopment() {
+    const host = String(window.location.hostname || "");
+    return host === "localhost" || host === "127.0.0.1";
+}
+
+
+function showDevelopmentAuthNotice() {
+    if (!isVeltoriaDevelopment()) return;
+
+    document.querySelectorAll(".dev-auth-notice").forEach(function(notice) {
+        notice.style.display = "block";
+    });
+}
+
+
+function readDevSignup() {
+    if (!isVeltoriaDevelopment()) return null;
+
+    try {
+        const saved = JSON.parse(localStorage.getItem(VELTORIA_DEV_SIGNUP_KEY) || "null");
+        if (!saved || !saved.email || !saved.username) return null;
+        return {
+            email: String(saved.email).trim().toLowerCase(),
+            username: String(saved.username).trim()
+        };
+    } catch (error) {
+        return null;
+    }
+}
+
+
+function rememberDevSignup(username, email) {
+    if (!isVeltoriaDevelopment()) return;
+
+    localStorage.setItem(VELTORIA_DEV_SIGNUP_KEY, JSON.stringify({
+        username: String(username || "").trim(),
+        email: String(email || "").trim().toLowerCase()
+    }));
+}
+
+
+async function continueDevelopmentSignup(username, email, password) {
+    rememberDevSignup(username, email);
+    document.getElementById("loginUsername").value = email;
+    document.getElementById("loginPassword").value = password;
+    document.getElementById("signupPassword").value = "";
+    document.getElementById("signupConfirm").value = "";
+    showAuthPage("login");
+    await login();
+}
+
+
+async function handleUnconfirmedLogin(email) {
+    if (isVeltoriaDevelopment()) {
+        alert("This email is not confirmed yet. Development mode did not send another confirmation email. Use the link already in your inbox, then sign in with the same password.");
+        return;
+    }
+
+    const resend = await resendSignupConfirmation(email);
+    if (resend && resend.rateLimited) {
+        alert("Confirm your email before logging in. Supabase is temporarily refusing to send another confirmation email. Wait a little while, then log in again. The link opens this same site.");
+        return;
+    }
+    if (resend && !resend.ok) {
+        alert("Confirm your email before logging in. " + resend.message);
+        return;
+    }
+    alert("Confirm your email before logging in. Another confirmation email has been sent. After you confirm, the same password works with your username or email. The link opens this same site.");
+}
+
+
 function authRedirectUrl() {
     return window.location.origin + window.location.pathname;
 }
@@ -4074,28 +4168,14 @@ async function login() {
             authData = await signInWithPassword(identity.email, password);
         } catch (error) {
             if (isUnconfirmedAuthError(error, error && error.message)) {
-                const resend = await resendSignupConfirmation(identity.email);
-                if (resend && resend.rateLimited) {
-                    alert("Confirm your email before logging in. Supabase is temporarily refusing to send another confirmation email. Wait a little while, then log in again. The link opens this same site.");
-                    return;
-                }
-                if (resend && !resend.ok) {
-                    alert("Confirm your email before logging in. " + resend.message);
-                    return;
-                }
-                alert("Confirm your email before logging in. Another confirmation email has been sent. After you confirm, the same password works with your username or email. The link opens this same site.");
+                await handleUnconfirmedLogin(identity.email);
                 return;
             }
             throw error;
         }
 
         if (authEmailConfirmation(authData.user) === "unconfirmed") {
-            const resend = await resendSignupConfirmation(identity.email);
-            if (resend && resend.rateLimited) {
-                alert("That email exists, but it is not confirmed yet. Supabase is temporarily refusing to send another confirmation email. Wait a little while, then log in again.");
-                return;
-            }
-            alert("That email exists, but it is not confirmed yet. Open the confirmation link before using the account.");
+            await handleUnconfirmedLogin(identity.email);
             return;
         }
 
@@ -4187,6 +4267,14 @@ async function signup() {
     }
 
     try {
+        if (isVeltoriaDevelopment()) {
+            const pending = readDevSignup();
+            if (pending && pending.email === email) {
+                await continueDevelopmentSignup(pending.username || username, email, password);
+                return;
+            }
+        }
+
         const existingName = await findUserByLogin(username);
         const existingEmail = await findUserByLogin(email);
         const sameAccount = existingName && existingEmail &&
@@ -4198,6 +4286,10 @@ async function signup() {
         }
 
         if (existingEmail) {
+            if (isVeltoriaDevelopment()) {
+                await continueDevelopmentSignup(existingEmail.username || username, email, password);
+                return;
+            }
             alert("That email already exists. Log in if you have confirmed it. If it is not confirmed yet, log in and Veltoria will send the confirmation link.");
             return;
         }
@@ -4230,6 +4322,10 @@ async function signup() {
                 return;
             }
             if (isEmailRateLimitError(data, message)) {
+                if (isVeltoriaDevelopment()) {
+                    alert("Supabase is rate-limiting confirmation emails. Development mode did not create another account or send another email. Sign in with an email you already used.");
+                    return;
+                }
                 alert("Supabase is sending confirmation emails too quickly. Wait a little while, then create the account again.");
                 return;
             }
@@ -4247,6 +4343,9 @@ async function signup() {
         document.getElementById("loginUsername").value = username;
 
         if (created.existing || !created.confirmed) {
+            if (isVeltoriaDevelopment()) {
+                rememberDevSignup(username, created.email || email);
+            }
             alert(created.existing
                 ? "That email already exists. Log in if you have confirmed it. If it is not confirmed yet, log in and Veltoria will send the confirmation link."
                 : "That email is not confirmed yet. Open the confirmation link before logging in. The account is not active until the email is confirmed.");
@@ -6951,6 +7050,7 @@ const PUBLISHABLE_API_KEY = "sb_publishable_20HcXeHutH_vjpF5Er4Odg_ukFwqqzi";
    ===================================================== */
 
 applySettings();
+showDevelopmentAuthNotice();
 completeAuthRedirect().then(function(handled) {
     if (!handled) restoreVeltoriaSession();
 }).catch(function(error) {
