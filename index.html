@@ -125,10 +125,27 @@ body {
 }
 
 .notification {
+    position: relative;
     font-size: 21px;
     cursor: pointer;
     padding: 8px;
     border-radius: 8px;
+}
+
+.notification-badge {
+    position: absolute;
+    top: 0;
+    right: 0;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    border-radius: 999px;
+    background: #7b3ff2;
+    color: #ffffff;
+    font-size: 10px;
+    line-height: 16px;
+    text-align: center;
+    font-weight: bold;
 }
 
 .notification:hover {
@@ -153,10 +170,43 @@ body {
     display: block;
 }
 
+#notificationList {
+    max-height: 360px;
+    overflow-y: auto;
+}
+
 .notification-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
     padding: 16px;
     border-bottom: 1px solid #30303a;
     font-weight: bold;
+}
+
+.notification-mark {
+    background: none;
+    border: none;
+    color: #b9a0ef;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.notification-item.unread {
+    font-weight: bold;
+    border-left: 3px solid #7b3ff2;
+}
+
+.notification-item.read {
+    opacity: 0.65;
+}
+
+.notification-empty {
+    padding: 18px 16px;
+    color: #a9a9b5;
+    text-align: center;
 }
 
 .notification-item {
@@ -241,6 +291,38 @@ h1 {
     border-radius: 16px;
     border: 1px solid #342b46;
     background: linear-gradient(135deg, #211b31, #15151d);
+}
+
+.club-status {
+    display: inline-block;
+    margin: 8px 0 16px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: #292238;
+    color: #d5d5df;
+    font-weight: bold;
+    font-size: 13px;
+}
+
+.club-status.active {
+    background: #7b3ff2;
+    color: #ffffff;
+}
+
+.club-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.club-benefits {
+    margin: 12px 0 0;
+    padding-left: 18px;
+    color: #d5d5df;
+}
+
+.club-benefits li {
+    margin: 8px 0;
 }
 
 .grid {
@@ -777,7 +859,7 @@ body.light-mode .user-result-card {
 /* LIGHT MODE */
 
 body.light-mode {
-    background: #f1f1f5;
+    background: #f1f1f5 !important;
     color: #181820;
 }
 
@@ -818,6 +900,20 @@ body.light-mode .hero,
 body.light-mode .profile-header {
     background: linear-gradient(135deg, #f0eaff, #ffffff);
     border-color: #d7d0e8;
+}
+
+body.light-mode .club-benefits {
+    color: #181820;
+}
+
+body.light-mode .club-status {
+    background: #eee8ff;
+    color: #181820;
+}
+
+body.light-mode .club-status.active {
+    background: #7b3ff2;
+    color: #ffffff;
 }
 
 body.light-mode .notification-item {
@@ -1191,6 +1287,7 @@ body.light-mode .marketplace-item-icon {
                 class="input"
                 type="text"
                 placeholder="Enter your username or email"
+                onkeydown="if (event.key === 'Enter') login()"
             >
 
             <label>Password</label>
@@ -1200,6 +1297,7 @@ body.light-mode .marketplace-item-icon {
                 class="input"
                 type="password"
                 placeholder="Enter your password"
+                onkeydown="if (event.key === 'Enter') login()"
             >
 
             <button class="button" onclick="login()">
@@ -1277,6 +1375,7 @@ body.light-mode .marketplace-item-icon {
                 class="input"
                 type="password"
                 placeholder="Confirm your password"
+                onkeydown="if (event.key === 'Enter') signup()"
             >
 
             <button class="button" onclick="signup()">
@@ -1414,7 +1513,7 @@ body.light-mode .marketplace-item-icon {
                     alt="Veltas"
                 >
 
-                <span>1,250 Veltas</span>
+                <span id="veltaBalance">0 Veltas</span>
 
             </div>
 
@@ -1425,6 +1524,7 @@ body.light-mode .marketplace-item-icon {
                     onclick="toggleNotifications(event)"
                 >
                     🔔
+                    <span id="notificationBadge" class="notification-badge" style="display:none;">0</span>
                 </div>
 
                 <div
@@ -1433,19 +1533,20 @@ body.light-mode .marketplace-item-icon {
                 >
 
                     <div class="notification-header">
-                        🔔 Notifications
+                        <span>🔔 Notifications</span>
+                        <button
+                            type="button"
+                            class="notification-mark"
+                            onclick="markAllNotificationsRead(event)"
+                        >
+                            Mark read
+                        </button>
                     </div>
 
-                    <div class="notification-item">
-                        🎮 A new Veltoria game is available!
-                    </div>
-
-                    <div class="notification-item">
-                        👥 Alex is now online.
-                    </div>
-
-                    <div class="notification-item">
-                        ⭐ Welcome to Veltoria!
+                    <div id="notificationList">
+                        <div class="notification-empty">
+                            No notifications yet.
+                        </div>
                     </div>
 
                 </div>
@@ -1981,6 +2082,10 @@ body.light-mode .marketplace-item-icon {
 
                 <h1>🪙 Get More Veltas</h1>
 
+                <p class="muted" id="veltaPageBalance">
+                    You have 0 Veltas.
+                </p>
+
                 <p class="muted">
                     Choose a Velta pack.
                 </p>
@@ -2128,13 +2233,53 @@ body.light-mode .marketplace-item-icon {
 
                     <h2>⭐ Veltoria Club</h2>
 
-                    <p class="muted">
-                        Premium features and rewards.
+                    <p id="clubStatusText" class="muted">
+                        You are not a Veltoria Club member.
                     </p>
 
-                    <button class="button">
-                        Join Veltoria Club
-                    </button>
+                    <div id="clubStatusBadge" class="club-status">
+                        Not a member
+                    </div>
+
+                    <div class="club-actions">
+
+                        <button
+                            id="clubJoinButton"
+                            class="button"
+                            type="button"
+                            onclick="joinVeltoriaClub()"
+                        >
+                            Join Veltoria Club
+                        </button>
+
+                        <button
+                            id="clubLeaveButton"
+                            class="button secondary"
+                            type="button"
+                            onclick="leaveVeltoriaClub()"
+                            style="display:none;"
+                        >
+                            Leave Veltoria Club
+                        </button>
+
+                    </div>
+
+                </div>
+
+                <div class="card">
+
+                    <h2>Club benefits</h2>
+
+                    <ul class="club-benefits">
+                        <li>A Club membership saved on your Veltoria account</li>
+                        <li>A member badge while your membership is active</li>
+                        <li>Your membership stays with you when you log back in</li>
+                        <li>Ready for a secure payment system later</li>
+                    </ul>
+
+                    <p class="muted">
+                        No payment is collected. Joining only saves your membership status.
+                    </p>
 
                 </div>
 
@@ -2153,7 +2298,101 @@ body.light-mode .marketplace-item-icon {
 
                 <div class="settings-section">
 
-                    <h2>🎨 Appearance</h2>
+                    <h2>👤 Account</h2>
+
+                    <div class="settings-card">
+
+                        <div class="account-box">
+
+                            <div class="account-line">
+
+                                <span class="account-label">
+                                    Display Name
+                                </span>
+
+                                <span
+                                    id="settingsDisplayName"
+                                    class="account-value"
+                                >
+                                    Sylis Guy
+                                </span>
+
+                            </div>
+
+                            <div class="account-line">
+
+                                <span class="account-label">
+                                    Username
+                                </span>
+
+                                <span
+                                    id="settingsUsername"
+                                    class="account-value"
+                                >
+                                    @username
+                                </span>
+
+                            </div>
+
+                            <div class="account-line">
+
+                                <span class="account-label">
+                                    Email
+                                </span>
+
+                                <span
+                                    id="settingsEmail"
+                                    class="account-value"
+                                >
+                                    —
+                                </span>
+
+                            </div>
+
+                            <div class="account-line">
+
+                                <span class="account-label">
+                                    Veltas
+                                </span>
+
+                                <span
+                                    id="settingsVeltaBalance"
+                                    class="account-value"
+                                >
+                                    0 Veltas
+                                </span>
+
+                            </div>
+
+                            <div class="account-line">
+
+                                <span class="account-label">
+                                    Veltoria Club
+                                </span>
+
+                                <span
+                                    id="settingsClubStatus"
+                                    class="account-value"
+                                >
+                                    Not a member
+                                </span>
+
+                            </div>
+
+                        </div>
+
+                        <p class="settings-description" style="margin-top:12px;">
+                            Your username stays the same. Change your display name and About Me on your profile.
+                        </p>
+
+                    </div>
+
+                </div>
+
+
+                <div class="settings-section">
+
+                    <h2>🔒 Privacy</h2>
 
                     <div class="settings-card">
 
@@ -2162,11 +2401,11 @@ body.light-mode .marketplace-item-icon {
                             <div class="settings-info">
 
                                 <div class="settings-title">
-                                    Dark Mode
+                                    Allow Friend Requests
                                 </div>
 
                                 <div class="settings-description">
-                                    Use Veltoria's dark purple interface.
+                                    Let other people send you friend requests.
                                 </div>
 
                             </div>
@@ -2174,9 +2413,36 @@ body.light-mode .marketplace-item-icon {
                             <label class="toggle">
 
                                 <input
-                                    id="darkModeToggle"
+                                    id="friendRequestsToggle"
                                     type="checkbox"
                                     checked
+                                >
+
+                                <span class="slider"></span>
+
+                            </label>
+
+                        </div>
+
+                        <div class="settings-row">
+
+                            <div class="settings-info">
+
+                                <div class="settings-title">
+                                    Private Profile
+                                </div>
+
+                                <div class="settings-description">
+                                    Hide your About Me from people who are not friends.
+                                </div>
+
+                            </div>
+
+                            <label class="toggle">
+
+                                <input
+                                    id="privateProfileToggle"
+                                    type="checkbox"
                                 >
 
                                 <span class="slider"></span>
@@ -2231,53 +2497,35 @@ body.light-mode .marketplace-item-icon {
 
                 <div class="settings-section">
 
-                    <h2>👤 Account</h2>
+                    <h2>🎨 Appearance</h2>
 
                     <div class="settings-card">
 
-                        <div class="account-box">
+                        <div class="settings-row">
 
-                            <div class="account-line">
+                            <div class="settings-info">
 
-                                <span class="account-label">
-                                    Display Name
-                                </span>
+                                <div class="settings-title">
+                                    Dark Mode
+                                </div>
 
-                                <span
-                                    id="settingsDisplayName"
-                                    class="account-value"
+                                <div class="settings-description">
+                                    Use Veltoria's dark purple interface.
+                                </div>
+
+                            </div>
+
+                            <label class="toggle">
+
+                                <input
+                                    id="darkModeToggle"
+                                    type="checkbox"
+                                    checked
                                 >
-                                    Sylis Guy
-                                </span>
 
-                            </div>
+                                <span class="slider"></span>
 
-                            <div class="account-line">
-
-                                <span class="account-label">
-                                    Username
-                                </span>
-
-                                <span
-                                    id="settingsUsername"
-                                    class="account-value"
-                                >
-                                    @username
-                                </span>
-
-                            </div>
-
-                            <div class="account-line">
-
-                                <span class="account-label">
-                                    Veltas
-                                </span>
-
-                                <span class="account-value">
-                                    🪙 1,250
-                                </span>
-
-                            </div>
+                            </label>
 
                         </div>
 
@@ -2410,8 +2658,211 @@ let profileData = {
     email: "",
     gamesCreated: "—",
     favorites: "—",
-    visits: "—"
+    visits: "—",
+    veltas: 0,
+    clubStatus: "inactive"
 };
+
+
+function normalizeClubStatus(value) {
+    return value === "active" ? "active" : "inactive";
+}
+
+
+function renderClubUI() {
+    const active = profileData.clubStatus === "active";
+    const statusText = document.getElementById("clubStatusText");
+    const badge = document.getElementById("clubStatusBadge");
+    const joinButton = document.getElementById("clubJoinButton");
+    const leaveButton = document.getElementById("clubLeaveButton");
+    const settingsStatus = document.getElementById("settingsClubStatus");
+
+    if (statusText) {
+        statusText.textContent = active
+            ? "You are a Veltoria Club member."
+            : "You are not a Veltoria Club member.";
+    }
+
+    if (badge) {
+        badge.textContent = active ? "Member" : "Not a member";
+        badge.className = "club-status" + (active ? " active" : "");
+    }
+
+    if (joinButton) joinButton.style.display = active ? "none" : "inline-block";
+    if (leaveButton) leaveButton.style.display = active ? "inline-block" : "none";
+    if (settingsStatus) settingsStatus.textContent = active ? "Member" : "Not a member";
+}
+
+
+let clubStatusSaving = false;
+
+
+async function saveClubStatus(status) {
+    const next = normalizeClubStatus(status);
+    if (!currentUsername) {
+        alert("Log in before changing your Veltoria Club membership.");
+        return false;
+    }
+
+    if (clubStatusSaving) return false;
+    clubStatusSaving = true;
+
+    try {
+        const record = await loadUserRecord(currentUsername);
+        if (!record || record.id === undefined || record.id === null) {
+            alert("Your membership could not be saved. That account was not found.");
+            return false;
+        }
+
+        const session = readStoredSession();
+        const response = await fetch(
+            DATABASE_API_URL +
+            "/rest/v1/users?id=eq." +
+            friendFilterValue(record.id),
+            {
+                method: "PATCH",
+                headers: authHeaders(session && session.access_token, {
+                    "Prefer": "return=representation"
+                }),
+                body: JSON.stringify({
+                    club_status: next
+                })
+            }
+        );
+
+        const responseText = await response.text();
+        if (!response.ok) {
+            console.error("Could not save Club membership:", responseText);
+            if (/42703|club_status|column/i.test(responseText)) {
+                alert("Your membership could not be saved. The users table needs a club_status column.");
+            } else if (/permission denied|42501/i.test(responseText)) {
+                alert("Your membership could not be saved. The users table is not allowing membership updates.");
+            } else {
+                alert("Your membership could not be saved.");
+            }
+            return false;
+        }
+
+        let rows = [];
+        try {
+            const parsed = JSON.parse(responseText);
+            if (Array.isArray(parsed)) rows = parsed;
+        } catch (error) {
+            rows = [];
+        }
+
+        if (!rows.length || rows[0].club_status !== next) {
+            alert("Your membership could not be saved. The users table blocked the update.");
+            return false;
+        }
+
+        profileData.clubStatus = next;
+        renderClubUI();
+        return true;
+    } catch (error) {
+        console.error("Club membership save error:", error);
+        alert("Something went wrong saving your membership.");
+        return false;
+    } finally {
+        clubStatusSaving = false;
+    }
+}
+
+
+async function joinVeltoriaClub() {
+    if (profileData.clubStatus === "active") return;
+    const saved = await saveClubStatus("active");
+    if (saved) alert("You joined Veltoria Club.");
+}
+
+
+async function leaveVeltoriaClub() {
+    if (profileData.clubStatus !== "active") return;
+    const confirmed = confirm("Leave Veltoria Club?");
+    if (!confirmed) return;
+    const saved = await saveClubStatus("inactive");
+    if (saved) alert("You left Veltoria Club.");
+}
+
+
+function veltaAmount(value) {
+    const amount = Number(value);
+    if (!Number.isFinite(amount) || amount < 0) return 0;
+    return Math.floor(amount);
+}
+
+
+function veltaWord(amount) {
+    return veltaAmount(amount) === 1 ? "Velta" : "Veltas";
+}
+
+
+function formatVeltaCount(amount) {
+    const count = veltaAmount(amount);
+    return count.toLocaleString() + " " + veltaWord(count);
+}
+
+
+function renderVeltaBalance() {
+    const text = formatVeltaCount(profileData.veltas);
+    const balance = document.getElementById("veltaBalance");
+    const settingsBalance = document.getElementById("settingsVeltaBalance");
+    const pageBalance = document.getElementById("veltaPageBalance");
+
+    if (balance) balance.textContent = text;
+    if (settingsBalance) settingsBalance.textContent = text;
+    if (pageBalance) pageBalance.textContent = "You have " + text + ".";
+}
+
+
+async function saveVeltaBalance(amount) {
+    const next = veltaAmount(amount);
+    if (!currentUsername) return false;
+
+    try {
+        const record = await loadUserRecord(currentUsername);
+        if (!record || record.id === undefined || record.id === null) return false;
+
+        const session = readStoredSession();
+        const response = await fetch(
+            DATABASE_API_URL +
+            "/rest/v1/users?id=eq." +
+            friendFilterValue(record.id),
+            {
+                method: "PATCH",
+                headers: authHeaders(session && session.access_token, {
+                    "Prefer": "return=representation"
+                }),
+                body: JSON.stringify({
+                    veltas: next
+                })
+            }
+        );
+
+        const responseText = await response.text();
+        if (!response.ok) {
+            console.error("Could not save the Velta balance:", responseText);
+            return false;
+        }
+
+        let rows = [];
+        try {
+            const parsed = JSON.parse(responseText);
+            if (Array.isArray(parsed)) rows = parsed;
+        } catch (error) {
+            rows = [];
+        }
+
+        if (!rows.length || Number(rows[0].veltas) !== next) return false;
+
+        profileData.veltas = next;
+        renderVeltaBalance();
+        return true;
+    } catch (error) {
+        console.error("Velta balance save error:", error);
+        return false;
+    }
+}
 
 let profileViewUsername = "";
 let skipProfileRefresh = false;
@@ -2437,8 +2888,9 @@ function viewMarketplaceItem(name, icon, price, description) {
     document.getElementById("marketplaceItemDescription").textContent = description;
 
     document.getElementById("marketplaceItemPrice").innerHTML =
-        price.toLocaleString() +
-        ' <img class="coin" src="9403-removebg-preview.png" alt="Veltas"> Veltas';
+        veltaAmount(price).toLocaleString() +
+        ' <img class="coin" src="9403-removebg-preview.png" alt="' + veltaWord(price) + '"> ' +
+        veltaWord(price);
 
     const overlay = document.getElementById("marketplaceOverlay");
 
@@ -2482,102 +2934,299 @@ function buyMarketplaceItem() {
    SYSTEM #5 — SETTINGS
    ===================================================== */
 
-let settingsData = {
+function defaultSettings() {
+    return {
+        darkMode: true,
+        notifications: true,
+        allowFriendRequests: true,
+        privateProfile: false
+    };
+}
 
-    darkMode: true,
 
-    notifications: true
+let settingsData = defaultSettings();
 
-};
+
+function parseSettings(value) {
+    if (!value) return null;
+
+    if (typeof value === "string") {
+        try {
+            value = JSON.parse(value);
+        } catch (error) {
+            return null;
+        }
+    }
+
+    if (typeof value !== "object" || Array.isArray(value)) return null;
+    return value;
+}
+
+
+function applyStoredSettings(saved) {
+    const settings = parseSettings(saved);
+    if (!settings) return;
+
+    if (typeof settings.darkMode === "boolean") {
+        settingsData.darkMode = settings.darkMode;
+    }
+
+    if (typeof settings.notifications === "boolean") {
+        settingsData.notifications = settings.notifications;
+    }
+
+    if (typeof settings.allowFriendRequests === "boolean") {
+        settingsData.allowFriendRequests = settings.allowFriendRequests;
+    }
+
+    if (typeof settings.privateProfile === "boolean") {
+        settingsData.privateProfile = settings.privateProfile;
+    }
+}
+
+
+function currentSettingsPayload() {
+    return {
+        darkMode: !!settingsData.darkMode,
+        notifications: !!settingsData.notifications,
+        allowFriendRequests: !!settingsData.allowFriendRequests,
+        privateProfile: !!settingsData.privateProfile
+    };
+}
+
+
+function setToggle(id, checked) {
+    const toggle = document.getElementById(id);
+    if (toggle) toggle.checked = !!checked;
+}
+
+
+function readToggle(id, fallback) {
+    const toggle = document.getElementById(id);
+    return toggle ? !!toggle.checked : fallback;
+}
 
 
 function applySettings() {
 
     if (settingsData.darkMode) {
-
         document.body.classList.remove("light-mode");
-
     } else {
-
         document.body.classList.add("light-mode");
-
     }
 
-    const darkToggle =
-        document.getElementById("darkModeToggle");
-
-    const notificationsToggle =
-        document.getElementById("notificationsToggle");
-
-    if (darkToggle) {
-
-        darkToggle.checked =
-            settingsData.darkMode;
-
-    }
-
-    if (notificationsToggle) {
-
-        notificationsToggle.checked =
-            settingsData.notifications;
-
-    }
+    setToggle("darkModeToggle", settingsData.darkMode);
+    setToggle("notificationsToggle", settingsData.notifications);
+    setToggle("friendRequestsToggle", settingsData.allowFriendRequests);
+    setToggle("privateProfileToggle", settingsData.privateProfile);
 
 }
 
 
-function saveSettings() {
-
-    const darkToggle =
-        document.getElementById("darkModeToggle");
-
-    const notificationsToggle =
-        document.getElementById("notificationsToggle");
-
-    if (darkToggle) {
-
-        settingsData.darkMode =
-            darkToggle.checked;
-
-    }
-
-    if (notificationsToggle) {
-
-        settingsData.notifications =
-            notificationsToggle.checked;
-
-    }
-
-    applySettings();
-
-    alert(
-        "Your Veltoria settings have been saved! ⚙️"
-    );
-
+function readSettingsFromForm() {
+    settingsData.darkMode = readToggle("darkModeToggle", settingsData.darkMode);
+    settingsData.notifications = readToggle("notificationsToggle", settingsData.notifications);
+    settingsData.allowFriendRequests = readToggle("friendRequestsToggle", settingsData.allowFriendRequests);
+    settingsData.privateProfile = readToggle("privateProfileToggle", settingsData.privateProfile);
 }
 
 
-function resetSettings() {
+async function loadSettingsFromAuth() {
+    const session = readStoredSession();
+    if (!session || !session.access_token) return null;
 
-    const confirmed =
-        confirm(
-            "Reset your Veltoria settings?"
-        );
+    try {
+        const response = await fetch(DATABASE_API_URL + "/auth/v1/user", {
+            method: "GET",
+            headers: authHeaders(session.access_token)
+        });
 
-    if (!confirmed) {
+        if (!response.ok) return null;
+
+        const user = await response.json();
+        const metadata = user && user.user_metadata;
+        return metadata ? parseSettings(metadata.veltoria_settings) : null;
+    } catch (error) {
+        console.warn("Could not load account settings:", error);
+        return null;
+    }
+}
+
+
+async function loadAccountSettings(record) {
+    const fromAuth = await loadSettingsFromAuth();
+    if (fromAuth) {
+        applyStoredSettings(fromAuth);
         return;
     }
 
-    settingsData.darkMode = true;
+    applyStoredSettings(record && record.settings);
+}
 
-    settingsData.notifications = true;
 
+async function saveSettingsToAuth(payload) {
+    const session = readStoredSession();
+    if (!session || !session.access_token || !currentUsername) return false;
+
+    const response = await fetch(DATABASE_API_URL + "/auth/v1/user", {
+        method: "PUT",
+        headers: authHeaders(session.access_token),
+        body: JSON.stringify({
+            data: {
+                username: currentUsername,
+                veltoria_settings: payload
+            }
+        })
+    });
+
+    if (!response.ok) {
+        console.error("Could not save account settings:", await response.text());
+        return false;
+    }
+
+    return true;
+}
+
+
+async function saveSettingsToUserRow(payload) {
+    try {
+        const record = await loadUserRecord(currentUsername);
+        if (!record || record.id === undefined || record.id === null) return false;
+
+        const session = readStoredSession();
+        const response = await fetch(
+            DATABASE_API_URL +
+            "/rest/v1/users?id=eq." +
+            friendFilterValue(record.id),
+            {
+                method: "PATCH",
+                headers: authHeaders(session && session.access_token, {
+                    "Prefer": "return=representation"
+                }),
+                body: JSON.stringify({
+                    settings: payload
+                })
+            }
+        );
+
+        const responseText = await response.text();
+        if (!response.ok) {
+            if (!/42703|settings/i.test(responseText)) {
+                console.error("Could not save settings on the user row:", responseText);
+            }
+            return false;
+        }
+
+        let rows = [];
+        try {
+            const parsed = JSON.parse(responseText);
+            if (Array.isArray(parsed)) rows = parsed;
+        } catch (error) {
+            rows = [];
+        }
+
+        return rows.length > 0 && !!parseSettings(rows[0].settings);
+    } catch (error) {
+        console.warn("Could not mirror settings onto the user row:", error);
+        return false;
+    }
+}
+
+
+async function saveSettingsToSupabase() {
+    const payload = currentSettingsPayload();
+
+    try {
+        const authSaved = await saveSettingsToAuth(payload);
+        const rowSaved = await saveSettingsToUserRow(payload);
+        return authSaved || rowSaved;
+    } catch (error) {
+        console.error("Settings save error:", error);
+        return false;
+    }
+}
+
+
+async function saveSettings() {
+    if (!currentUsername) {
+        alert("Log in before saving settings.");
+        return;
+    }
+
+    readSettingsFromForm();
     applySettings();
 
-    alert(
-        "Your settings have been reset! 🔄"
-    );
+    const saved = await saveSettingsToSupabase();
 
+    if (saved && typeof refreshNotifications === "function") {
+        refreshNotifications();
+    }
+
+    alert(saved
+        ? "Your Veltoria settings have been saved."
+        : "Your settings could not be saved to your account.");
+}
+
+
+async function resetSettings() {
+    const confirmed = confirm("Reset your Veltoria settings?");
+    if (!confirmed) return;
+
+    settingsData = defaultSettings();
+    applySettings();
+
+    const saved = await saveSettingsToSupabase();
+
+    if (saved && typeof refreshNotifications === "function") {
+        refreshNotifications();
+    }
+
+    alert(saved
+        ? "Your settings have been reset."
+        : "Your settings were reset on this page, but they could not be saved to your account.");
+}
+
+
+function profileIsPrivate(record) {
+    const settings = parseSettings(record && record.settings);
+    return !!(settings && settings.privateProfile === true);
+}
+
+
+let userSettingsColumnReady = true;
+
+
+async function userAcceptsFriendRequests(username) {
+    if (!userSettingsColumnReady) return true;
+
+    try {
+        const response = await fetch(
+            DATABASE_API_URL +
+            "/rest/v1/users?username=eq." +
+            friendFilterValue(username) +
+            "&select=settings&limit=1",
+            {
+                method: "GET",
+                headers: friendsAuthHeaders()
+            }
+        );
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            if (/42703|does not exist/i.test(errorText)) {
+                userSettingsColumnReady = false;
+            }
+            return true;
+        }
+
+        const rows = await response.json();
+        const settings = parseSettings(rows[0] && rows[0].settings);
+        if (settings && settings.allowFriendRequests === false) return false;
+    } catch (error) {
+        console.warn("Could not read friend request privacy:", error);
+    }
+
+    return true;
 }
 
 
@@ -2605,6 +3254,14 @@ function updateSettingsUI() {
                 .toLowerCase();
 
     }
+
+    const email = document.getElementById("settingsEmail");
+    if (email) {
+        email.textContent = profileData.email || "—";
+    }
+
+    renderVeltaBalance();
+    renderClubUI();
 
 }
 
@@ -2658,6 +3315,15 @@ function authErrorText(data, fallback) {
 }
 
 
+function isUnconfirmedAuthError(data, message) {
+    const parts = [message];
+    if (data) {
+        parts.push(data.error_code, data.error, data.code, data.msg, data.error_description);
+    }
+    return /email_not_confirmed|email not confirmed/i.test(parts.join(" "));
+}
+
+
 function isValidVeltoriaUsername(username) {
     return /^[A-Za-z0-9_]{3,20}$/.test(username);
 }
@@ -2670,6 +3336,10 @@ async function loadProfileForCurrentUser() {
     profileData.gamesCreated = "—";
     profileData.favorites = "—";
     profileData.visits = "—";
+    profileData.veltas = 0;
+    profileData.clubStatus = "inactive";
+    renderVeltaBalance();
+    renderClubUI();
 
     if (!currentUsername) return;
 
@@ -2677,6 +3347,7 @@ async function loadProfileForCurrentUser() {
         const record = await loadUserRecord(currentUsername);
         if (!record) return;
         applyRecordToProfileData(record);
+        await loadAccountSettings(record);
     } catch (error) {
         console.error("Could not load the profile:", error);
     }
@@ -2733,6 +3404,11 @@ function stopLiveUpdates() {
         clearInterval(messageRefreshTimer);
         messageRefreshTimer = null;
     }
+
+    if (typeof notificationRefreshTimer !== "undefined" && notificationRefreshTimer) {
+        clearInterval(notificationRefreshTimer);
+        notificationRefreshTimer = null;
+    }
 }
 
 
@@ -2744,7 +3420,7 @@ async function findUserByLogin(loginValue) {
     const response = await fetch(
         DATABASE_API_URL +
         "/rest/v1/users?" + column + "=ilike." +
-        friendFilterValue(value) +
+        ilikeFilterValue(value) +
         "&select=username,email&limit=1",
         {
             method: "GET",
@@ -2768,47 +3444,149 @@ async function findUserByLogin(loginValue) {
 }
 
 
-async function ensurePublicUser(username, email, accessToken) {
-    const existing = await findUserByLogin(username);
-    if (existing) return existing;
+function readAuthSignup(data) {
+    const source = data || {};
+    const session = source.session || null;
+    const accessToken = (session && session.access_token) || source.access_token || "";
+    const user = source.user || (source.id && source.email ? source : null);
 
-    try {
-        await insertPublicUser(username, email, accessToken);
-    } catch (error) {
-        console.error("Could not add the account to the users table:", error);
-        return null;
-    }
-
-    return findUserByLogin(username);
+    return {
+        accessToken: accessToken,
+        userId: user && user.id ? String(user.id) : "",
+        email: user && user.email ? String(user.email).trim().toLowerCase() : "",
+        session: session || (source.access_token ? source : null)
+    };
 }
 
 
-async function insertPublicUser(username, email, accessToken) {
+async function linkAuthId(username, authUserId, accessToken) {
+    if (!username || !authUserId) return false;
+
+    let record = null;
+    try {
+        record = await loadUserRecord(username);
+    } catch (error) {
+        console.warn("Could not load the account to link:", error);
+        return false;
+    }
+
+    if (!record || !Object.prototype.hasOwnProperty.call(record, "auth_id")) return false;
+    if (record.auth_id) return String(record.auth_id) === String(authUserId);
+
     const response = await fetch(
-        DATABASE_API_URL + "/rest/v1/users",
+        DATABASE_API_URL +
+        "/rest/v1/users?id=eq." +
+        friendFilterValue(record.id),
         {
-            method: "POST",
+            method: "PATCH",
             headers: authHeaders(accessToken, {
                 "Prefer": "return=representation"
             }),
             body: JSON.stringify({
-                username: username,
-                email: email
+                auth_id: authUserId
             })
         }
     );
 
     if (!response.ok) {
-        const errorText = await response.text();
-        console.error("Could not save the Veltoria user:", errorText);
-        if (/permission denied|42501/i.test(errorText)) {
-            throw new Error("The users table is not allowing new accounts to be saved.");
-        }
-        throw new Error("The account could not be saved in the users table.");
+        console.warn("Could not link the Auth user id:", await response.text());
+        return false;
     }
 
-    const rows = await response.json();
-    return rows && rows[0] ? rows[0] : null;
+    return true;
+}
+
+
+async function ensurePublicUser(username, email, accessToken, authUserId) {
+    const normalizedEmail = String(email || "").trim().toLowerCase();
+    const existing = await findUserByLogin(username);
+    if (existing) {
+        await linkAuthId(existing.username, authUserId, accessToken);
+        return existing;
+    }
+
+    if (normalizedEmail) {
+        const existingEmail = await findUserByLogin(normalizedEmail);
+        if (existingEmail) {
+            await linkAuthId(existingEmail.username, authUserId, accessToken);
+            return existingEmail;
+        }
+    }
+
+    try {
+        await insertPublicUser(username, normalizedEmail, accessToken, authUserId);
+    } catch (error) {
+        if (!accessToken) {
+            console.error("Could not add the account to the users table:", error);
+            return null;
+        }
+
+        try {
+            await insertPublicUser(username, normalizedEmail, null, authUserId);
+        } catch (retryError) {
+            console.error("Could not add the account to the users table:", retryError);
+            return null;
+        }
+    }
+
+    const saved = await findUserByLogin(username);
+    if (saved) await linkAuthId(saved.username, authUserId, accessToken);
+    return saved;
+}
+
+
+async function insertPublicUser(username, email, accessToken, authUserId) {
+    const normalizedEmail = String(email || "").trim().toLowerCase();
+    const baseRow = {
+        username: username,
+        email: normalizedEmail
+    };
+    const payloads = [];
+
+    if (authUserId) {
+        payloads.push({
+            username: baseRow.username,
+            email: baseRow.email,
+            auth_id: authUserId
+        });
+    }
+    payloads.push(baseRow);
+
+    let lastError = "";
+
+    for (let index = 0; index < payloads.length; index++) {
+        const response = await fetch(
+            DATABASE_API_URL + "/rest/v1/users",
+            {
+                method: "POST",
+                headers: authHeaders(accessToken, {
+                    "Prefer": "return=representation"
+                }),
+                body: JSON.stringify(payloads[index])
+            }
+        );
+
+        const responseText = await response.text();
+        if (response.ok) {
+            try {
+                const rows = JSON.parse(responseText);
+                return rows && rows[0] ? rows[0] : null;
+            } catch (error) {
+                return null;
+            }
+        }
+
+        lastError = responseText;
+        const missingAuthColumn = payloads[index].auth_id &&
+            /42703|auth_id/i.test(responseText);
+        if (!missingAuthColumn) break;
+    }
+
+    console.error("Could not save the Veltoria user:", lastError);
+    if (/permission denied|42501/i.test(lastError)) {
+        throw new Error("The users table is not allowing new accounts to be saved.");
+    }
+    throw new Error("The account could not be saved in the users table.");
 }
 
 
@@ -2819,7 +3597,7 @@ async function signInWithPassword(email, password) {
             method: "POST",
             headers: authHeaders(),
             body: JSON.stringify({
-                email: email,
+                email: String(email || "").trim().toLowerCase(),
                 password: password
             })
         }
@@ -2829,16 +3607,72 @@ async function signInWithPassword(email, password) {
 
     if (!response.ok) {
         const message = authErrorText(data, "Could not log in.");
+        if (isUnconfirmedAuthError(data, message)) {
+            throw new Error("Confirm your email before logging in.");
+        }
+        if (/email logins are disabled/i.test(message)) {
+            throw new Error("Email sign-in is turned off in Supabase. Turn the Email provider back on, then log in with your username or email.");
+        }
         if (/invalid login credentials/i.test(message)) {
             throw new Error("That username/email or password is incorrect.");
-        }
-        if (/email not confirmed/i.test(message)) {
-            throw new Error("Confirm your email before logging in.");
         }
         throw new Error(message);
     }
 
     return data;
+}
+
+
+function ilikeFilterValue(value) {
+    const escaped = String(value || "").trim()
+        .replace(/\\/g, "\\\\")
+        .replace(/%/g, "\\%")
+        .replace(/_/g, "\\_");
+    return encodeURIComponent(escaped);
+}
+
+
+async function resolveLoginIdentity(loginValue) {
+    const value = String(loginValue || "").trim();
+    if (!value) return null;
+
+    if (value.includes("@")) {
+        let account = null;
+        try {
+            account = await findUserByLogin(value);
+        } catch (error) {
+            console.warn("Email profile lookup failed:", error);
+        }
+
+        return {
+            email: value.toLowerCase(),
+            username: account && account.username ? account.username : ""
+        };
+    }
+
+    const account = await findUserByLogin(value);
+    if (!account || !account.email) return null;
+
+    return {
+        email: account.email.trim().toLowerCase(),
+        username: account.username
+    };
+}
+
+
+async function resendSignupConfirmation(email) {
+    try {
+        await fetch(DATABASE_API_URL + "/auth/v1/resend", {
+            method: "POST",
+            headers: authHeaders(),
+            body: JSON.stringify({
+                type: "signup",
+                email: String(email || "").trim().toLowerCase()
+            })
+        });
+    } catch (error) {
+        console.warn("Could not resend the confirmation email:", error);
+    }
 }
 
 
@@ -2899,6 +3733,7 @@ async function enterApp(showWelcome) {
     applySettings();
     initializeMessages();
     startFriendRequestAutoRefresh();
+    startNotificationRefresh();
 
     if (showWelcome) {
         alert("Welcome to Veltoria, " + currentUsername + "! 🎉");
@@ -2957,36 +3792,43 @@ async function login() {
     }
 
     try {
-        let account = await findUserByLogin(loginValue);
+        const identity = await resolveLoginIdentity(loginValue);
+        if (!identity) {
+            alert("That username was not found. Log in with the email on the account.");
+            return;
+        }
+
         let authData = null;
-
-        if (account && account.email) {
-            authData = await signInWithPassword(account.email, password);
-        } else if (loginValue.includes("@")) {
-            authData = await signInWithPassword(loginValue, password);
-            const metadata = authData.user && authData.user.user_metadata;
-            const metadataName = metadata && metadata.username
-                ? String(metadata.username).trim()
-                : "";
-
-            if (!metadataName) {
-                alert("That Veltoria account could not be found.");
+        try {
+            authData = await signInWithPassword(identity.email, password);
+        } catch (error) {
+            if (isUnconfirmedAuthError(null, error && error.message)) {
+                await resendSignupConfirmation(identity.email);
+                alert("Confirm your email before logging in. Another confirmation email has been sent. After you confirm, the same password works with your username or email.");
                 return;
             }
+            throw error;
+        }
 
-            account = {
-                username: metadataName,
-                email: loginValue
-            };
-        } else {
+        const metadata = authData.user && authData.user.user_metadata;
+        const metadataName = metadata && metadata.username
+            ? String(metadata.username).trim()
+            : "";
+        const username = identity.username || metadataName;
+        const email = (authData.user && authData.user.email) || identity.email;
+        const authUserId = authData.user && authData.user.id
+            ? String(authData.user.id)
+            : "";
+
+        if (!username) {
             alert("That Veltoria account could not be found.");
             return;
         }
 
-        await ensurePublicUser(account.username, account.email, authData.access_token);
+        await ensurePublicUser(username, email, authData.access_token, authUserId);
 
-        currentUsername = account.username;
-        rememberSession(authData, account.username, account.email);
+        currentUsername = username;
+        rememberSession(authData, username, email);
 
         document.getElementById("loginPassword").value = "";
 
@@ -3013,7 +3855,8 @@ async function signup() {
         document
             .getElementById("signupEmail")
             .value
-            .trim();
+            .trim()
+            .toLowerCase();
 
     const password =
         document
@@ -3082,15 +3925,22 @@ async function signup() {
                 alert("That email is already registered. Log in instead.");
                 return;
             }
+            if (/email signups are disabled/i.test(message)) {
+                alert("Email signups are turned off in Supabase. Turn the Email provider back on, then create the account again.");
+                return;
+            }
             alert(message);
             return;
         }
 
-        const accessToken = data.session && data.session.access_token
-            ? data.session.access_token
-            : data.access_token;
-
-        const savedUser = await ensurePublicUser(username, email, accessToken);
+        const created = readAuthSignup(data);
+        const accessToken = created.accessToken;
+        const savedUser = await ensurePublicUser(
+            username,
+            created.email || email,
+            accessToken,
+            created.userId
+        );
 
         document.getElementById("signupUsername").value = "";
         document.getElementById("signupEmail").value = "";
@@ -3100,17 +3950,17 @@ async function signup() {
 
         if (!accessToken) {
             alert(savedUser
-                ? "Account created. Confirm your email, then log in."
-                : "Account created. Confirm your email, then log in. The users table also has to allow new accounts before friends can find you.");
+                ? "Account created. Confirm your email, then log in with that email or your username."
+                : "Account created. Confirm your email, then log in with that email. The users table also has to allow new accounts before a username login can find you.");
             showAuthPage("login");
             return;
         }
 
         currentUsername = username;
         rememberSession(
-            data.session || data,
+            created.session || data,
             username,
-            email
+            created.email || email
         );
 
         if (!savedUser) {
@@ -3156,9 +4006,20 @@ async function logout() {
     sentFriendRequests = [];
     friendRelationships = [];
     renderedMessageKey = null;
+    notificationItems = [];
+
+    const notificationPanel = document.getElementById("notificationPanel");
+    if (notificationPanel) notificationPanel.classList.remove("active");
+    renderNotificationList();
 
     profileData.displayName = "";
     profileData.about = "Welcome to my Veltoria profile!";
+    profileData.veltas = 0;
+    profileData.clubStatus = "inactive";
+    renderVeltaBalance();
+    renderClubUI();
+    settingsData = defaultSettings();
+    applySettings();
 
     const loginPassword = document.getElementById("loginPassword");
     if (loginPassword) loginPassword.value = "";
@@ -3202,6 +4063,10 @@ function applyRecordToProfileData(record) {
     profileData.gamesCreated = profileField(record, ["games_created", "gamesCreated"], "—");
     profileData.favorites = profileField(record, ["favorites"], "—");
     profileData.visits = profileField(record, ["visits"], "—");
+    profileData.veltas = veltaAmount(record.veltas);
+    profileData.clubStatus = normalizeClubStatus(record.club_status);
+    renderVeltaBalance();
+    renderClubUI();
 }
 
 
@@ -3520,6 +4385,12 @@ function showPage(pageId, button) {
 
     }
 
+    if (pageId === "club") {
+
+        renderClubUI();
+
+    }
+
 }
 
 
@@ -3588,6 +4459,12 @@ function showPageById(pageId) {
 
     }
 
+    if (pageId === "club") {
+
+        renderClubUI();
+
+    }
+
 }
 
 
@@ -3635,6 +4512,241 @@ document.addEventListener("click", function(event) {
    SYSTEM #2 — NOTIFICATIONS
    ===================================================== */
 
+let notificationItems = [];
+let notificationRefreshTimer = null;
+
+
+function notificationReadStorageKey() {
+    return "veltoriaReadNotifications:" + normalizeFriendName(currentUsername);
+}
+
+
+function readNotificationIds() {
+    try {
+        const saved = localStorage.getItem(notificationReadStorageKey());
+        const ids = saved ? JSON.parse(saved) : [];
+        return Array.isArray(ids) ? ids : [];
+    } catch (error) {
+        return [];
+    }
+}
+
+
+function storeNotificationIds(ids) {
+    localStorage.setItem(
+        notificationReadStorageKey(),
+        JSON.stringify(ids.slice(-300))
+    );
+}
+
+
+function markNotificationRead(id) {
+    const ids = readNotificationIds();
+    if (ids.indexOf(id) === -1) ids.push(id);
+    storeNotificationIds(ids);
+}
+
+
+function notificationTime(value) {
+    const time = new Date(value).getTime();
+    return Number.isNaN(time) ? 0 : time;
+}
+
+
+function notificationPreview(text) {
+    const value = String(text || "").replace(/\s+/g, " ").trim();
+    if (value.length <= 80) return value;
+    return value.slice(0, 77) + "...";
+}
+
+
+async function refreshNotifications() {
+    if (!currentUsername || !friendsDatabaseReady()) return;
+
+    if (!settingsData.notifications) {
+        notificationItems = [];
+        renderNotificationList();
+        return;
+    }
+
+    const me = friendFilterValue(currentUsername);
+    const meName = normalizeFriendName(currentUsername);
+    const items = [];
+
+    try {
+        const friendsResponse = await fetch(
+            DATABASE_API_URL +
+            "/rest/v1/friends?or=" +
+            "(sender.eq." + me + ",recipient.eq." + me + ")" +
+            "&select=id,sender,recipient,status,created_at",
+            {
+                method: "GET",
+                headers: friendsAuthHeaders()
+            }
+        );
+
+        if (friendsResponse.ok) {
+            const rows = await friendsResponse.json();
+            rows.forEach(function(row) {
+                if (!row || row.id === undefined || row.id === null) return;
+
+                if (
+                    row.status === "pending" &&
+                    normalizeFriendName(row.recipient) === meName
+                ) {
+                    items.push({
+                        id: "friend-request:" + row.id,
+                        kind: "request",
+                        username: row.sender,
+                        text: row.sender + " sent you a friend request.",
+                        createdAt: row.created_at
+                    });
+                }
+
+                if (
+                    row.status === "accepted" &&
+                    normalizeFriendName(row.sender) === meName
+                ) {
+                    items.push({
+                        id: "friend-accepted:" + row.id,
+                        kind: "accepted",
+                        username: row.recipient,
+                        text: row.recipient + " accepted your friend request.",
+                        createdAt: row.created_at
+                    });
+                }
+            });
+        }
+    } catch (error) {
+        console.error("Could not load friend notifications:", error);
+    }
+
+    try {
+        const messagesResponse = await fetch(
+            DATABASE_API_URL +
+            "/rest/v1/messages?recipient=eq." + me +
+            "&select=id,sender,message,created_at&order=created_at.desc&limit=20",
+            {
+                method: "GET",
+                headers: friendsAuthHeaders()
+            }
+        );
+
+        if (messagesResponse.ok) {
+            const rows = await messagesResponse.json();
+            rows.forEach(function(row) {
+                if (!row || !row.sender || row.id === undefined || row.id === null) return;
+                const preview = notificationPreview(row.message);
+                items.push({
+                    id: "message:" + row.id,
+                    kind: "message",
+                    username: row.sender,
+                    text: row.sender + ": " + (preview || "New message"),
+                    createdAt: row.created_at
+                });
+            });
+        }
+    } catch (error) {
+        console.error("Could not load message notifications:", error);
+    }
+
+    const readIds = readNotificationIds();
+    items.sort(function(a, b) {
+        const aUnread = readIds.indexOf(a.id) === -1 ? 1 : 0;
+        const bUnread = readIds.indexOf(b.id) === -1 ? 1 : 0;
+        if (aUnread !== bUnread) return bUnread - aUnread;
+        return notificationTime(b.createdAt) - notificationTime(a.createdAt);
+    });
+
+    notificationItems = items.slice(0, 25);
+    renderNotificationList();
+}
+
+
+function renderNotificationList() {
+    const list = document.getElementById("notificationList");
+    const badge = document.getElementById("notificationBadge");
+    if (!list) return;
+
+    const readIds = readNotificationIds();
+    const unreadCount = notificationItems.filter(function(item) {
+        return readIds.indexOf(item.id) === -1;
+    }).length;
+
+    if (badge) {
+        if (unreadCount && settingsData.notifications) {
+            badge.style.display = "flex";
+            badge.textContent = unreadCount > 9 ? "9+" : String(unreadCount);
+        } else {
+            badge.style.display = "none";
+        }
+    }
+
+    list.innerHTML = "";
+
+    if (!notificationItems.length) {
+        const empty = document.createElement("div");
+        empty.className = "notification-empty";
+        empty.textContent = "No notifications yet.";
+        list.appendChild(empty);
+        return;
+    }
+
+    notificationItems.forEach(function(item) {
+        const unread = readIds.indexOf(item.id) === -1;
+        const row = document.createElement("div");
+        row.className = "notification-item " + (unread ? "unread" : "read");
+        row.textContent = item.text;
+        row.addEventListener("click", function(event) {
+            event.stopPropagation();
+            openNotification(item);
+        });
+        list.appendChild(row);
+    });
+}
+
+
+function openNotification(item) {
+    markNotificationRead(item.id);
+    renderNotificationList();
+
+    const panel = document.getElementById("notificationPanel");
+    if (panel) panel.classList.remove("active");
+
+    if (item.kind === "message") {
+        messageFriend(item.username);
+        return;
+    }
+
+    showPageById("friends");
+}
+
+
+function markAllNotificationsRead(event) {
+    if (event) event.stopPropagation();
+
+    const ids = readNotificationIds();
+    notificationItems.forEach(function(item) {
+        if (ids.indexOf(item.id) === -1) ids.push(item.id);
+    });
+    storeNotificationIds(ids);
+    renderNotificationList();
+}
+
+
+function startNotificationRefresh() {
+    if (notificationRefreshTimer) {
+        clearInterval(notificationRefreshTimer);
+    }
+
+    refreshNotifications();
+
+    notificationRefreshTimer = setInterval(function() {
+        if (currentUsername) refreshNotifications();
+    }, 8000);
+}
+
+
 function toggleNotifications(event) {
 
     event.stopPropagation();
@@ -3653,6 +4765,10 @@ function toggleNotifications(event) {
         document.getElementById("notificationPanel");
 
     panel.classList.toggle("active");
+
+    if (panel.classList.contains("active")) {
+        refreshNotifications();
+    }
 
 }
 
@@ -4380,6 +5496,12 @@ async function sendFriendRequestToUsername(usernameToAdd) {
             return;
         }
 
+        const acceptsRequests = await userAcceptsFriendRequests(targetUsername);
+        if (!acceptsRequests) {
+            alert(targetUsername + " is not accepting friend requests.");
+            return;
+        }
+
         /* -------------------------------------------------
            CHECK FOR AN EXISTING REQUEST / FRIENDSHIP
            ------------------------------------------------- */
@@ -4790,11 +5912,15 @@ async function viewUserProfile(username) {
         if (editCard) editCard.classList.remove("active");
         if (profileView) profileView.classList.remove("hidden");
 
+        const hideAbout = profileIsPrivate(record) && !isFriend;
+
         paintProfile({
             displayName: profileField(record, ["display_name", "displayName"], record.username),
             username: record.username,
             email: "",
-            about: profileField(record, ["about", "bio"], "Welcome to my Veltoria profile!"),
+            about: hideAbout
+                ? "This profile is private."
+                : profileField(record, ["about", "bio"], "Welcome to my Veltoria profile!"),
             friendCount: friendCount === null ? "—" : friendCount,
             gamesCreated: profileField(record, ["games_created", "gamesCreated"], "—"),
             favorites: profileField(record, ["favorites"], "—"),
