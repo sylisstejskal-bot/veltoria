@@ -3660,9 +3660,19 @@ async function resolveLoginIdentity(loginValue) {
 }
 
 
+function authRedirectUrl() {
+    return window.location.origin + window.location.pathname;
+}
+
+
+function authRedirectQuery() {
+    return "redirect_to=" + encodeURIComponent(authRedirectUrl());
+}
+
+
 async function resendSignupConfirmation(email) {
     try {
-        await fetch(DATABASE_API_URL + "/auth/v1/resend", {
+        await fetch(DATABASE_API_URL + "/auth/v1/resend?" + authRedirectQuery(), {
             method: "POST",
             headers: authHeaders(),
             body: JSON.stringify({
@@ -3738,6 +3748,84 @@ async function enterApp(showWelcome) {
     if (showWelcome) {
         alert("Welcome to Veltoria, " + currentUsername + "! 🎉");
     }
+}
+
+
+function clearAuthParamsFromUrl() {
+    const query = new URLSearchParams(window.location.search);
+    ["error", "error_code", "error_description", "code"].forEach(function(key) {
+        query.delete(key);
+    });
+    const search = query.toString();
+    window.history.replaceState(
+        null,
+        "",
+        window.location.pathname + (search ? "?" + search : "")
+    );
+}
+
+
+async function completeAuthRedirect() {
+    const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+    const query = new URLSearchParams(window.location.search);
+    const errorDescription = hash.get("error_description") || query.get("error_description");
+
+    if (errorDescription) {
+        clearAuthParamsFromUrl();
+        alert(errorDescription.replace(/\+/g, " "));
+        return true;
+    }
+
+    const accessToken = hash.get("access_token");
+    const refreshToken = hash.get("refresh_token");
+    if (!accessToken || !refreshToken) return false;
+
+    const userResponse = await fetch(DATABASE_API_URL + "/auth/v1/user", {
+        headers: authHeaders(accessToken)
+    });
+
+    if (!userResponse.ok) {
+        clearAuthParamsFromUrl();
+        alert("Your email was confirmed, but this page could not start the session. Log in with your username or email.");
+        return true;
+    }
+
+    const user = await userResponse.json();
+    const metadata = user && user.user_metadata;
+    const username = metadata && metadata.username
+        ? String(metadata.username).trim()
+        : "";
+    const email = user && user.email
+        ? String(user.email).trim().toLowerCase()
+        : "";
+
+    if (!username) {
+        clearAuthParamsFromUrl();
+        alert("Your email is confirmed. Log in with your username or email.");
+        return true;
+    }
+
+    await ensurePublicUser(
+        username,
+        email,
+        accessToken,
+        user.id ? String(user.id) : ""
+    );
+
+    rememberSession({
+        access_token: accessToken,
+        refresh_token: refreshToken,
+        expires_in: hash.get("expires_in")
+    }, username, email);
+
+    clearAuthParamsFromUrl();
+    currentUsername = username;
+
+    const loginPage = document.getElementById("login");
+    if (loginPage) loginPage.classList.remove("active");
+
+    await enterApp(hash.get("type") === "signup");
+    return true;
 }
 
 
@@ -3903,7 +3991,7 @@ async function signup() {
         }
 
         const response = await fetch(
-            DATABASE_API_URL + "/auth/v1/signup",
+            DATABASE_API_URL + "/auth/v1/signup?" + authRedirectQuery(),
             {
                 method: "POST",
                 headers: authHeaders(),
@@ -6492,7 +6580,12 @@ const PUBLISHABLE_API_KEY = "sb_publishable_20HcXeHutH_vjpF5Er4Odg_ukFwqqzi";
    ===================================================== */
 
 applySettings();
-restoreVeltoriaSession();
+completeAuthRedirect().then(function(handled) {
+    if (!handled) restoreVeltoriaSession();
+}).catch(function(error) {
+    console.error("Could not finish email confirmation:", error);
+    restoreVeltoriaSession();
+});
 
 </script>
 
